@@ -11,24 +11,61 @@ import 'app.dart';
 import 'core/constants/storage_keys.dart';
 import 'core/constants/supabase_config.dart';
 
+// Classe per bypassare verifiche SSL su desktop (solo per sviluppo)
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+        // Accetta tutti i certificati solo per Supabase in debug mode
+        if (kDebugMode && (host.contains('supabase.co') || host.contains('supabase.in'))) {
+          print('🔓 Accepting certificate for $host (debug mode)');
+          return true;
+        }
+        return false;
+      }
+      ..connectionTimeout = const Duration(seconds: 30)
+      ..idleTimeout = const Duration(seconds: 30);
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inizializza Supabase PRIMA di tutto
-  await Supabase.initialize(
-    url: SupabaseConfig.currentUrl,
-    anonKey: SupabaseConfig.currentAnonKey,
-    debug: kDebugMode,
-  );
+  // IMPORTANTE: Override SSL solo per desktop in debug mode
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    if (kDebugMode) {
+      HttpOverrides.global = MyHttpOverrides();
+      print('⚠️  SSL certificate verification relaxed for debug mode');
+    }
+  }
   
-  if (kDebugMode) {
-    print('✅ Supabase inizializzato: ${SupabaseConfig.currentUrl}');
+  try {
+    print('🚀 Inizializzazione Supabase...');
+    
+    // Inizializza Supabase con configurazione base
+    await Supabase.initialize(
+      url: SupabaseConfig.currentUrl,
+      anonKey: SupabaseConfig.currentAnonKey,
+      debug: kDebugMode,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
+    );
+    
+    print('✅ Supabase inizializzato con successo: ${SupabaseConfig.currentUrl}');
+    
+  } catch (e) {
+    print('❌ Errore nell\'inizializzazione di Supabase: $e');
+    print('📝 Continuando in modalità offline...');
+    // Continua comunque l'app in modalità offline
   }
   
   // Inizializza sqflite per desktop
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    print('✅ SQLite inizializzato per desktop');
   }
   
   // Inizializza Hive per caching locale
@@ -50,12 +87,8 @@ Future<void> _initializeHive() async {
     await Hive.openBox(StorageKeys.cacheBox);
     await Hive.openBox(StorageKeys.settingsBox);
     
-    if (kDebugMode) {
-      print('✅ Hive inizializzato con successo');
-    }
+    print('✅ Hive inizializzato con successo');
   } catch (e) {
-    if (kDebugMode) {
-      print('❌ Errore nell\'inizializzazione di Hive: $e');
-    }
+    print('❌ Errore nell\'inizializzazione di Hive: $e');
   }
 }

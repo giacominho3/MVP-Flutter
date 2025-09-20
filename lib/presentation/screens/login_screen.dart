@@ -1,8 +1,11 @@
 // lib/presentation/screens/login_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/colors.dart';
+import '../../data/datasources/remote/supabase_service.dart';
 import '../providers/chat_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -17,6 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isSignUp = false;
+  bool _isTestingConnection = false;
 
   @override
   void dispose() {
@@ -77,6 +81,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  
+                  // DEBUG: Test connessione button
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 24),
+                    OutlinedButton.icon(
+                      onPressed: _isTestingConnection ? null : _testConnection,
+                      icon: _isTestingConnection 
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.wifi_find),
+                      label: Text(_isTestingConnection 
+                          ? 'Testing...' 
+                          : 'Test Connessione'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.warning,
+                        side: const BorderSide(color: AppColors.warning),
+                      ),
+                    ),
+                  ],
                   
                   const SizedBox(height: 48),
                   
@@ -154,6 +180,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : 'Non hai un account? Registrati'),
                   ),
                   
+                  // Debug: Modalità offline
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {
+                        // Simula un utente autenticato per test UI
+                        final fakeUser = User(
+                          id: 'test-user-id',
+                          appMetadata: {},
+                          userMetadata: {},
+                          aud: 'authenticated',
+                          createdAt: DateTime.now().toIso8601String(),
+                        );
+                        
+                        ref.read(authStateProvider.notifier).state = 
+                            AuthState.authenticated(fakeUser);
+                      },
+                      child: const Text(
+                        '🔧 Modalità Test (Bypass Login)',
+                        style: TextStyle(
+                          color: AppColors.warning,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                  
                   // Error Message
                   if (authState is AuthStateError) ...[
                     const SizedBox(height: 16),
@@ -188,6 +241,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _testConnection() async {
+    setState(() {
+      _isTestingConnection = true;
+    });
+
+    try {
+      // Test di connessione semplice
+      final supabase = Supabase.instance.client;
+      await supabase.from('_test_').select().limit(1);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Connessione Supabase OK!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Errore connessione: ${e.toString().split('\n').first}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTestingConnection = false;
+        });
+      }
+    }
   }
 
   void _handleSubmit() {

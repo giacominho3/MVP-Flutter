@@ -76,7 +76,7 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     });
   }
   
-  Future<void> signIn(String email, String password) async {
+Future<void> signIn(String email, String password) async {
     state = const AuthState.loading();
     try {
       final response = await SupabaseService.signInWithEmail(email, password);
@@ -86,7 +86,8 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         state = const AuthState.error('Login failed');
       }
     } catch (e) {
-      state = AuthState.error(e.toString());
+      String errorMessage = _parseError(e);
+      state = AuthState.error(errorMessage);
     }
   }
   
@@ -100,10 +101,36 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         state = const AuthState.error('Registration failed');
       }
     } catch (e) {
-      state = AuthState.error(e.toString());
+      String errorMessage = _parseError(e);
+      state = AuthState.error(errorMessage);
     }
   }
   
+  String _parseError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    
+    if (errorStr.contains('connection failed') || errorStr.contains('network')) {
+      return 'Problema di connessione. Controlla la tua connessione internet.';
+    }
+    if (errorStr.contains('certificate') || errorStr.contains('ssl') || errorStr.contains('tls')) {
+      return 'Problema di sicurezza della connessione. Riprova.';
+    }
+    if (errorStr.contains('timeout')) {
+      return 'Timeout della connessione. Riprova.';
+    }
+    if (errorStr.contains('invalid_credentials')) {
+      return 'Email o password non corretti.';
+    }
+    if (errorStr.contains('email_not_confirmed')) {
+      return 'Conferma la tua email prima di accedere.';
+    }
+    if (errorStr.contains('too_many_requests')) {
+      return 'Troppi tentativi. Riprova tra qualche minuto.';
+    }
+    
+    return 'Errore di connessione. Verifica la tua connessione internet e riprova.';
+  }
+ 
   Future<void> signOut() async {
     try {
       await SupabaseService.signOut();

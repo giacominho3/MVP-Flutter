@@ -1,18 +1,64 @@
-// lib/data/datasources/remote/supabase_service.dart
+// lib/data/datasources/remote/supabase_service.dart - VERSIONE DEBUG
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 import '../../../domain/entities/message.dart';
 import '../../../domain/entities/chat_session.dart';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
   
-  // Authentication
-  static Future<AuthResponse> signInWithEmail(String email, String password) {
-    return client.auth.signInWithPassword(email: email, password: password);
+  // Test di connessione semplice
+  static Future<bool> testConnection() async {
+    try {
+      print('🔍 Testing Supabase connection...');
+      
+      // Test semplice - prova a fare una query base
+      final response = await client
+          .from('profiles') // Tabella che dovrebbe esistere
+          .select('count')
+          .limit(1);
+      
+      print('✅ Supabase connection test successful');
+      return true;
+    } catch (e) {
+      print('❌ Supabase connection test failed: $e');
+      return false;
+    }
   }
   
-  static Future<AuthResponse> signUp(String email, String password) {
-    return client.auth.signUp(email: email, password: password);
+  // Authentication
+  static Future<AuthResponse> signInWithEmail(String email, String password) async {
+    try {
+      print('🔐 Attempting sign in for: $email');
+      
+      final response = await client.auth.signInWithPassword(
+        email: email, 
+        password: password,
+      );
+      
+      print('✅ Sign in successful');
+      return response;
+    } catch (e) {
+      print('❌ Sign in error: $e');
+      rethrow;
+    }
+  }
+  
+  static Future<AuthResponse> signUp(String email, String password) async {
+    try {
+      print('📝 Attempting sign up for: $email');
+      
+      final response = await client.auth.signUp(
+        email: email, 
+        password: password,
+      );
+      
+      print('✅ Sign up successful');
+      return response;
+    } catch (e) {
+      print('❌ Sign up error: $e');
+      rethrow;
+    }
   }
   
   static Future<void> signOut() {
@@ -22,58 +68,60 @@ class SupabaseService {
   static User? get currentUser => client.auth.currentUser;
   static bool get isAuthenticated => currentUser != null;
   
-  // Chat Sessions
+  // Chat Sessions - versione semplificata per test
   static Future<List<ChatSession>> getChatSessions() async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    final response = await client
-        .from('chat_sessions')
-        .select()
-        .eq('user_id', currentUser!.id)
-        .order('updated_at', ascending: false);
-    
-    return response.map<ChatSession>((json) => _chatSessionFromJson(json)).toList();
+    try {
+      // Per ora ritorna una lista vuota - implementeremo le tabelle dopo
+      print('📋 Getting chat sessions (mockup for now)');
+      return [];
+    } catch (e) {
+      print('❌ Error getting chat sessions: $e');
+      return [];
+    }
   }
   
   static Future<ChatSession> createChatSession(String title) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    final response = await client
-        .from('chat_sessions')
-        .insert({
-          'user_id': currentUser!.id,
-          'title': title,
-        })
-        .select()
-        .single();
-    
-    return _chatSessionFromJson(response);
+    try {
+      // Per ora crea una sessione locale - implementeremo il salvataggio dopo
+      print('➕ Creating chat session: $title');
+      return ChatSession.create(title: title);
+    } catch (e) {
+      print('❌ Error creating chat session: $e');
+      rethrow;
+    }
   }
   
   static Future<void> deleteChatSession(String sessionId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await client
-        .from('chat_sessions')
-        .delete()
-        .eq('id', sessionId)
-        .eq('user_id', currentUser!.id);
+    try {
+      print('🗑️ Deleting chat session: $sessionId');
+      // Implementeremo dopo
+    } catch (e) {
+      print('❌ Error deleting chat session: $e');
+      rethrow;
+    }
   }
   
-  // Messages
+  // Messages - versione semplificata
   static Future<List<Message>> getMessages(String sessionId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    final response = await client
-        .from('messages')
-        .select()
-        .eq('session_id', sessionId)
-        .order('created_at', ascending: true);
-    
-    return response.map<Message>((json) => _messageFromJson(json)).toList();
+    try {
+      print('💬 Getting messages for session: $sessionId');
+      // Per ora ritorna lista vuota
+      return [];
+    } catch (e) {
+      print('❌ Error getting messages: $e');
+      return [];
+    }
   }
   
-  // Claude API Proxy via Edge Function
+  // Proxy per Claude API - versione di test
   static Future<Map<String, dynamic>> sendToClaude({
     required String message,
     required List<Message> history,
@@ -81,41 +129,34 @@ class SupabaseService {
   }) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    final response = await client.functions.invoke('claude-proxy', body: {
-      'message': message,
-      'history': history.map((m) => {
-        'role': m.isUser ? 'user' : 'assistant',
-        'content': m.content,
-      }).toList(),
-      'session_id': sessionId,
-    });
-    
-    if (response.status != 200) {
-      final errorMessage = response.data is String 
-          ? response.data 
-          : response.data?.toString() ?? 'Unknown error';
-      throw SupabaseException('API Error: $errorMessage');
+    try {
+      print('🤖 Sending message to Claude (via Supabase)...');
+      
+      // Per ora simula una risposta - implementeremo la Edge Function dopo
+      await Future.delayed(const Duration(seconds: 1));
+      
+      return {
+        'content': 'Ciao! Questa è una risposta di test. Il sistema funziona correttamente!',
+        'usage': {'tokens': 50},
+      };
+    } catch (e) {
+      print('❌ Error sending to Claude: $e');
+      rethrow;
     }
-    
-    return response.data;
   }
   
-  // Usage tracking
+  // Usage tracking - versione mockup
   static Future<Map<String, int>> getUserUsage() async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      final response = await client
-          .rpc('get_user_monthly_usage')
-          .single();
-      
       return {
-        'messages': response['total_messages'] ?? 0,
-        'tokens': response['total_tokens'] ?? 0,
-        'cost_cents': response['total_cost_cents'] ?? 0,
+        'messages': 5,
+        'tokens': 250,
+        'cost_cents': 10,
       };
     } catch (e) {
-      // Se la funzione non esiste o c'è un errore, ritorna valori di default
+      print('❌ Error getting user usage: $e');
       return {
         'messages': 0,
         'tokens': 0,
@@ -124,13 +165,12 @@ class SupabaseService {
     }
   }
   
-  // Utility per verificare rate limits
   static Future<bool> canSendMessage() async {
     try {
       final usage = await getUserUsage();
-      return (usage['messages'] ?? 0) < 100; // 100 messaggi/ora
+      return (usage['messages'] ?? 0) < 100;
     } catch (e) {
-      return true; // In caso di errore, permetti l'invio
+      return true;
     }
   }
   
