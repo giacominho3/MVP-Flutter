@@ -1,4 +1,4 @@
-// lib/presentation/providers/chat_provider.dart - SOLO LA PARTE MODIFICATA
+// lib/presentation/providers/chat_provider.dart
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -188,21 +188,39 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       // Aggiungi messaggio utente alla visualizzazione locale
       state = state!.addMessage(userMessage);
       
+      // Crea messaggio assistente temporaneo con status "sending"
+      final tempAssistantMessage = Message(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        content: '',
+        isUser: false,
+        timestamp: DateTime.now(),
+        status: MessageStatus.sending,
+        sessionId: state!.id,
+      );
+      
+      // Aggiungi messaggio assistente temporaneo
+      state = state!.addMessage(tempAssistantMessage);
+      
       // CHIAMA LA EDGE FUNCTION DI SUPABASE!
       final response = await SupabaseService.sendToClaude(
         message: content,
         sessionId: state!.id,
-        history: state!.messages.where((m) => m != userMessage).toList(),
+        history: state!.messages.where((m) => m != userMessage && m != tempAssistantMessage).toList(),
       );
       
-      // Crea messaggio assistente con la risposta
+      // Rimuovi il messaggio temporaneo
+      final messagesWithoutTemp = state!.messages.where((m) => m.id != tempAssistantMessage.id).toList();
+      
+      // Crea messaggio assistente finale con la risposta
       final assistantMessage = Message.assistant(
         content: response['content'] ?? '',
         sessionId: state!.id,
       );
       
-      // Aggiungi risposta alla sessione
-      state = state!.addMessage(assistantMessage);
+      // Aggiorna lo stato con i messaggi finali
+      state = state!.copyWith(
+        messages: [...messagesWithoutTemp, assistantMessage],
+      );
       
       messageNotifier.setIdle();
       
@@ -215,9 +233,17 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       
     } catch (e) {
       print('❌ Errore nell\'invio: $e');
+      
+      // Rimuovi il messaggio temporaneo in caso di errore
       if (state != null && state!.messages.isNotEmpty) {
-        state = state!.markLastMessageError();
+        final lastMessage = state!.messages.last;
+        if (lastMessage.status == MessageStatus.sending && !lastMessage.isUser) {
+          // Rimuovi il messaggio "typing" temporaneo
+          final messagesWithoutTemp = state!.messages.where((m) => m != lastMessage).toList();
+          state = state!.copyWith(messages: messagesWithoutTemp);
+        }
       }
+      
       messageNotifier.setError('Errore: $e');
     }
   }
@@ -241,7 +267,7 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   }
   
   static String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
 
