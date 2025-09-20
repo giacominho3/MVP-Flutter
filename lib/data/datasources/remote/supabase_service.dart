@@ -32,7 +32,7 @@ class SupabaseService {
         .eq('user_id', currentUser!.id)
         .order('updated_at', ascending: false);
     
-    return response.map<ChatSession>((json) => ChatSession.fromSupabase(json)).toList();
+    return response.map<ChatSession>((json) => _chatSessionFromJson(json)).toList();
   }
   
   static Future<ChatSession> createChatSession(String title) async {
@@ -47,7 +47,7 @@ class SupabaseService {
         .select()
         .single();
     
-    return ChatSession.fromSupabase(response);
+    return _chatSessionFromJson(response);
   }
   
   static Future<void> deleteChatSession(String sessionId) async {
@@ -70,7 +70,7 @@ class SupabaseService {
         .eq('session_id', sessionId)
         .order('created_at', ascending: true);
     
-    return response.map<Message>((json) => Message.fromSupabase(json)).toList();
+    return response.map<Message>((json) => _messageFromJson(json)).toList();
   }
   
   // Claude API Proxy via Edge Function
@@ -133,11 +133,9 @@ class SupabaseService {
       return true; // In caso di errore, permetti l'invio
     }
   }
-}
-
-// Estensioni per convertire da/verso Supabase
-extension ChatSessionFromSupabase on ChatSession {
-  static ChatSession fromSupabase(Map<String, dynamic> json) {
+  
+  // Helper methods per convertire JSON -> Entities
+  static ChatSession _chatSessionFromJson(Map<String, dynamic> json) {
     return ChatSession(
       id: json['id'],
       title: json['title'],
@@ -146,10 +144,8 @@ extension ChatSessionFromSupabase on ChatSession {
       isActive: true,
     );
   }
-}
-
-extension MessageFromSupabase on Message {
-  static Message fromSupabase(Map<String, dynamic> json) {
+  
+  static Message _messageFromJson(Map<String, dynamic> json) {
     return Message(
       id: json['id'],
       content: json['content'],
