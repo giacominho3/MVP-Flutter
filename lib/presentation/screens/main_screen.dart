@@ -1,11 +1,11 @@
 // lib/presentation/screens/main_screen.dart
-import 'package:ai_assistant_mvp/presentation/screens/chat_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat/message_bubble.dart';
+import '../widgets/chat/chat_input.dart'; // IMPORT CORRETTO
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -121,7 +121,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                if (authState is AuthStateAuthenticated)
+                if (authState is AppAuthStateAuthenticated)
                   Text(
                     authState.user.email ?? 'Utente',
                     style: const TextStyle(
@@ -320,7 +320,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         Expanded(
           child: _buildMessagesList(chatSession.messages),
         ),
-        if (messageState is MessageStateError)
+        if (messageState is AppMessageStateError)
           _buildErrorBar(messageState.message),
         _buildChatInputArea(messageState),
       ],
@@ -475,8 +475,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
   
   Widget _buildChatInputArea(messageState) {
-    final isSending = messageState is MessageStateSending;
-    final isEnabled = messageState is! MessageStateSending;
+    final isSending = messageState is AppMessageStateSending;
+    final isEnabled = messageState is! AppMessageStateSending;
     
     return ChatInput(
       onSendMessage: _sendMessage,

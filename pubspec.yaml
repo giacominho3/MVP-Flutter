@@ -21,6 +21,7 @@ dependencies:
   
   # Network & APIs
   dio: ^5.4.0
+  http: ^1.1.0  # Necessario per SSL override
   
   # Local Storage
   shared_preferences: ^2.2.2
@@ -38,9 +39,6 @@ dependencies:
   uuid: ^4.2.1
   intl: ^0.19.0
   mime: ^1.0.6
-  
-  # HTTP per override SSL (necessario per desktop)
-  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:

@@ -1,6 +1,5 @@
 // lib/data/datasources/remote/supabase_service.dart - VERSIONE DEBUG
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
 import '../../../domain/entities/message.dart';
 import '../../../domain/entities/chat_session.dart';
 

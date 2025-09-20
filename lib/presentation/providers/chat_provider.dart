@@ -9,7 +9,7 @@ import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 
 // Provider per lo stato di autenticazione
-final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
+final authStateProvider = StateNotifierProvider<AuthStateNotifier, AppAuthState>((ref) {
   return AuthStateNotifier();
 });
 
@@ -19,14 +19,14 @@ final currentChatSessionProvider = StateNotifierProvider<ChatSessionNotifier, Ch
 });
 
 // Provider per lo stato di invio messaggio
-final messageStateProvider = StateNotifierProvider<MessageStateNotifier, MessageState>((ref) {
+final messageStateProvider = StateNotifierProvider<MessageStateNotifier, AppMessageState>((ref) {
   return MessageStateNotifier();
 });
 
 // Provider per le sessioni chat dell'utente
 final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
   final authState = ref.watch(authStateProvider);
-  if (authState is! AuthStateAuthenticated) {
+  if (authState is! AppAuthStateAuthenticated) {
     return [];
   }
   
@@ -40,7 +40,7 @@ final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
 // Provider per l'usage dell'utente
 final userUsageProvider = FutureProvider<Map<String, int>>((ref) async {
   final authState = ref.watch(authStateProvider);
-  if (authState is! AuthStateAuthenticated) {
+  if (authState is! AppAuthStateAuthenticated) {
     return {'messages': 0, 'tokens': 0, 'cost_cents': 0};
   }
   
@@ -51,8 +51,8 @@ final userUsageProvider = FutureProvider<Map<String, int>>((ref) async {
   }
 });
 
-class AuthStateNotifier extends StateNotifier<AuthState> {
-  AuthStateNotifier() : super(const AuthState.loading()) {
+class AuthStateNotifier extends StateNotifier<AppAuthState> {
+  AuthStateNotifier() : super(const AppAuthState.loading()) {
     _init();
   }
   
@@ -60,49 +60,49 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     // Controlla se l'utente è già loggato
     final user = SupabaseService.currentUser;
     if (user != null) {
-      state = AuthState.authenticated(user);
+      state = AppAuthState.authenticated(user);
     } else {
-      state = const AuthState.unauthenticated();
+      state = const AppAuthState.unauthenticated();
     }
     
     // Ascolta i cambiamenti di auth
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final user = data.session?.user;
       if (user != null) {
-        state = AuthState.authenticated(user);
+        state = AppAuthState.authenticated(user);
       } else {
-        state = const AuthState.unauthenticated();
+        state = const AppAuthState.unauthenticated();
       }
     });
   }
   
-Future<void> signIn(String email, String password) async {
-    state = const AuthState.loading();
+  Future<void> signIn(String email, String password) async {
+    state = const AppAuthState.loading();
     try {
       final response = await SupabaseService.signInWithEmail(email, password);
       if (response.user != null) {
-        state = AuthState.authenticated(response.user!);
+        state = AppAuthState.authenticated(response.user!);
       } else {
-        state = const AuthState.error('Login failed');
+        state = const AppAuthState.error('Login failed');
       }
     } catch (e) {
       String errorMessage = _parseError(e);
-      state = AuthState.error(errorMessage);
+      state = AppAuthState.error(errorMessage);
     }
   }
   
   Future<void> signUp(String email, String password) async {
-    state = const AuthState.loading();
+    state = const AppAuthState.loading();
     try {
       final response = await SupabaseService.signUp(email, password);
       if (response.user != null) {
-        state = AuthState.authenticated(response.user!);
+        state = AppAuthState.authenticated(response.user!);
       } else {
-        state = const AuthState.error('Registration failed');
+        state = const AppAuthState.error('Registration failed');
       }
     } catch (e) {
       String errorMessage = _parseError(e);
-      state = AuthState.error(errorMessage);
+      state = AppAuthState.error(errorMessage);
     }
   }
   
@@ -134,9 +134,9 @@ Future<void> signIn(String email, String password) async {
   Future<void> signOut() async {
     try {
       await SupabaseService.signOut();
-      state = const AuthState.unauthenticated();
+      state = const AppAuthState.unauthenticated();
     } catch (e) {
-      state = AuthState.error(e.toString());
+      state = AppAuthState.error(e.toString());
     }
   }
 }
@@ -149,7 +149,7 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   /// Crea una nuova sessione chat
   Future<void> createNewSession({String? title}) async {
     final authState = _ref.read(authStateProvider);
-    if (authState is! AuthStateAuthenticated) {
+    if (authState is! AppAuthStateAuthenticated) {
       throw Exception('User not authenticated');
     }
     
@@ -263,60 +263,60 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   }
 }
 
-class MessageStateNotifier extends StateNotifier<MessageState> {
-  MessageStateNotifier() : super(const MessageState.idle());
+class MessageStateNotifier extends StateNotifier<AppMessageState> {
+  MessageStateNotifier() : super(const AppMessageState.idle());
   
-  void setSending() => state = const MessageState.sending();
-  void setIdle() => state = const MessageState.idle();
-  void setError(String message) => state = MessageState.error(message);
+  void setSending() => state = const AppMessageState.sending();
+  void setIdle() => state = const AppMessageState.idle();
+  void setError(String message) => state = AppMessageState.error(message);
 }
 
-// Modelli per lo stato di autenticazione
-sealed class AuthState {
-  const AuthState();
+// Modelli per lo stato di autenticazione (rinominati per evitare conflitti)
+sealed class AppAuthState {
+  const AppAuthState();
   
-  const factory AuthState.loading() = AuthStateLoading;
-  const factory AuthState.authenticated(User user) = AuthStateAuthenticated;
-  const factory AuthState.unauthenticated() = AuthStateUnauthenticated;
-  const factory AuthState.error(String message) = AuthStateError;
+  const factory AppAuthState.loading() = AppAuthStateLoading;
+  const factory AppAuthState.authenticated(User user) = AppAuthStateAuthenticated;
+  const factory AppAuthState.unauthenticated() = AppAuthStateUnauthenticated;
+  const factory AppAuthState.error(String message) = AppAuthStateError;
 }
 
-class AuthStateLoading extends AuthState {
-  const AuthStateLoading();
+class AppAuthStateLoading extends AppAuthState {
+  const AppAuthStateLoading();
 }
 
-class AuthStateAuthenticated extends AuthState {
+class AppAuthStateAuthenticated extends AppAuthState {
   final User user;
-  const AuthStateAuthenticated(this.user);
+  const AppAuthStateAuthenticated(this.user);
 }
 
-class AuthStateUnauthenticated extends AuthState {
-  const AuthStateUnauthenticated();
+class AppAuthStateUnauthenticated extends AppAuthState {
+  const AppAuthStateUnauthenticated();
 }
 
-class AuthStateError extends AuthState {
+class AppAuthStateError extends AppAuthState {
   final String message;
-  const AuthStateError(this.message);
+  const AppAuthStateError(this.message);
 }
 
-// Modelli per lo stato dei messaggi
-sealed class MessageState {
-  const MessageState();
+// Modelli per lo stato dei messaggi (rinominati per coerenza)
+sealed class AppMessageState {
+  const AppMessageState();
   
-  const factory MessageState.idle() = MessageStateIdle;
-  const factory MessageState.sending() = MessageStateSending;
-  const factory MessageState.error(String message) = MessageStateError;
+  const factory AppMessageState.idle() = AppMessageStateIdle;
+  const factory AppMessageState.sending() = AppMessageStateSending;
+  const factory AppMessageState.error(String message) = AppMessageStateError;
 }
 
-class MessageStateIdle extends MessageState {
-  const MessageStateIdle();
+class AppMessageStateIdle extends AppMessageState {
+  const AppMessageStateIdle();
 }
 
-class MessageStateSending extends MessageState {
-  const MessageStateSending();
+class AppMessageStateSending extends AppMessageState {
+  const AppMessageStateSending();
 }
 
-class MessageStateError extends MessageState {
+class AppMessageStateError extends AppMessageState {
   final String message;
-  const MessageStateError(this.message);
+  const AppMessageStateError(this.message);
 }

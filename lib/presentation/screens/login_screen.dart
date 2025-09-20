@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/colors.dart';
-import '../../data/datasources/remote/supabase_service.dart';
 import '../providers/chat_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -150,11 +149,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   
                   // Submit Button
                   ElevatedButton(
-                    onPressed: authState is AuthStateLoading ? null : _handleSubmit,
+                    onPressed: authState is AppAuthStateLoading ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
                     ),
-                    child: authState is AuthStateLoading
+                    child: authState is AppAuthStateLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -195,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         );
                         
                         ref.read(authStateProvider.notifier).state = 
-                            AuthState.authenticated(fakeUser);
+                            AppAuthState.authenticated(fakeUser);
                       },
                       child: const Text(
                         '🔧 Modalità Test (Bypass Login)',
@@ -208,7 +207,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                   
                   // Error Message
-                  if (authState is AuthStateError) ...[
+                  if (authState is AppAuthStateError) ...[
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(12),

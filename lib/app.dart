@@ -29,12 +29,12 @@ class AuthWrapper extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     return switch (authState) {
-      AuthStateLoading() => const Scaffold(
+      AppAuthStateLoading() => const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
-      AuthStateAuthenticated() => const MainScreen(),
-      AuthStateUnauthenticated() => const LoginScreen(),
-      AuthStateError() => const LoginScreen(),
+      AppAuthStateAuthenticated() => const MainScreen(),
+      AppAuthStateUnauthenticated() => const LoginScreen(),
+      AppAuthStateError() => const LoginScreen(),
     };
   }
 }
