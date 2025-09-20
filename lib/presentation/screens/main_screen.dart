@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/colors.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -11,113 +10,134 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _isPreviewVisible = true;
-  double _sidebarWidth = 300;
-  double _previewWidth = 400;
+  bool _isPersonalPinsExpanded = true;
+  bool _isOrgPinsExpanded = false;
+  bool _isUtilitiesExpanded = false;
+  final TextEditingController _messageController = TextEditingController();
+  
+  // Stato per gestire se è stata selezionata una chat
+  bool _isChatSelected = false;
   
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 1200;
-    
     return Scaffold(
       key: _scaffoldKey,
-      appBar: _buildAppBar(),
-      drawer: isSmallScreen ? _buildSidebar() : null,
+      backgroundColor: Colors.white,
       body: Row(
         children: [
-          // Left Sidebar (Hidden on small screens)
-          if (!isSmallScreen) _buildSidebar(),
+          // Left Sidebar
+          _buildLeftSidebar(),
           
-          // Main Chat Area
+          // Main Content Area
           Expanded(
-            child: _buildChatArea(),
+            child: _isChatSelected ? _buildSelectionPreview() : _buildStartingPage(),
           ),
-          
-          // Right Preview Panel (Collapsible)
-          if (_isPreviewVisible && !isSmallScreen) _buildPreviewPanel(),
         ],
       ),
     );
   }
   
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Row(
-        children: [
-          Icon(Icons.smart_toy_rounded, color: AppColors.primary),
-          const SizedBox(width: 8),
-          const Text('AI Assistant v1.0'),
-        ],
-      ),
-      actions: [
-        // Preview toggle button
-        IconButton(
-          icon: Icon(_isPreviewVisible ? Icons.visibility_off : Icons.visibility),
-          onPressed: () => setState(() => _isPreviewVisible = !_isPreviewVisible),
-          tooltip: 'Toggle Preview',
-        ),
-        
-        // Settings button
-        IconButton(
-          icon: const Icon(Icons.settings_rounded),
-          onPressed: () => _navigateToSettings(),
-          tooltip: 'Settings',
-        ),
-        
-        const SizedBox(width: 8),
-      ],
-    );
-  }
-  
-  Widget _buildSidebar() {
+  Widget _buildLeftSidebar() {
     return Container(
-      width: _sidebarWidth,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+      width: 340,
+      decoration: const BoxDecoration(
+        color: Colors.white,
         border: Border(
-          right: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-            width: 1,
-          ),
+          right: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),
       ),
       child: Column(
         children: [
-          // Session References
-          Container(
-            padding: const EdgeInsets.all(16),
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Riferimenti Sessione',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+          // Header con versione beta
+          _buildSidebarHeader(),
+          
+          // Contenuto scrollabile
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Riferimenti della Sessione
+                  _buildSessionReferences(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Riferimenti Permanenti
+                  _buildPermanentReferences(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Utilities Section
+                  _buildUtilitiesSection(),
+                ],
               ),
             ),
           ),
-          
-          Expanded(
-            flex: 1,
-            child: _buildSessionReferences(),
-          ),
-          
-          // Permanent References
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSidebarHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Logo/Icon
           Container(
-            padding: const EdgeInsets.all(16),
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Riferimenti Permanenti',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.smart_toy_rounded,
+              color: Colors.white,
+              size: 20,
             ),
           ),
           
-          Expanded(
-            flex: 2,
-            child: _buildPermanentReferences(),
+          const SizedBox(width: 12),
+          
+          // Versione
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'v.0.0.1',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+          
+          const Spacer(),
+          
+          // Beta badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF69B4),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              'beta',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -125,354 +145,499 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
   
   Widget _buildSessionReferences() {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildReferenceItem(
-          icon: Icons.folder_rounded,
-          title: 'Budget Q4 2024.xlsx',
-          subtitle: 'GOOGLE DRIVE',
-          color: AppColors.fileSpreadsheet,
+        Text(
+          'Riferimenti della Sessione',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[600],
+            letterSpacing: 0.5,
+          ),
         ),
+        
+        const SizedBox(height: 12),
+        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const SizedBox(height: 12),
+        
+        // File reference item
         _buildReferenceItem(
-          icon: Icons.description_rounded,
-          title: 'Report Vendite.pdf',
-          subtitle: 'LOCAL',
-          color: AppColors.fileDocument,
-        ),
-        _buildReferenceItem(
-          icon: Icons.search_rounded,
-          title: 'Query: fatture 2024',
-          subtitle: '34 file trovati',
-          color: AppColors.secondary,
+          title: 'Nome File #1',
+          badge: 'G DRIVE',
+          badgeColor: const Color(0xFF10B981),
         ),
       ],
     );
   }
   
   Widget _buildPermanentReferences() {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildPinCategory(
-          icon: Icons.bar_chart_rounded,
-          title: 'Contabilità 2024',
-          isExpanded: true,
+        Text(
+          'Riferimenti Permanenti',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[600],
+            letterSpacing: 0.5,
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const SizedBox(height: 12),
+        
+        // Personal pins section
+        _buildExpandableSection(
+          icon: Icons.person_outline,
+          title: 'I tuoi pin personali',
+          isExpanded: _isPersonalPinsExpanded,
+          onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
           children: [
-            _buildSubPin(
-              icon: Icons.assessment_rounded,
-              title: 'Report Mensili',
+            _buildPinItem(
+              title: 'Contabilità 2024',
+              badge: 'G DRIVE',
+              hasRemove: true,
+              onTap: () => _selectChat(),
             ),
-            _buildSubPin(
-              icon: Icons.receipt_rounded,
-              title: 'Fatture',
+            _buildPinItem(
+              title: 'Contabilità 2023',
+              badge: 'G DRIVE',
+              hasRemove: true,
+              onTap: () => _selectChat(),
             ),
           ],
         ),
         
-        _buildPinCategory(
-          icon: Icons.bar_chart_outlined,
-          title: 'Contabilità 2023',
-          isExpanded: false,
-        ),
+        const SizedBox(height: 8),
         
-        _buildPinCategory(
-          icon: Icons.business_rounded,
-          title: 'Pin Organizzazione',
-          isExpanded: true,
-          children: [
-            _buildSubPin(
-              icon: Icons.group_rounded,
-              title: 'Progetti Cliente',
-            ),
-            _buildSubPin(
-              icon: Icons.assignment_rounded,
-              title: 'Contratti Attivi',
-            ),
-          ],
+        // Organization pins section
+        _buildExpandableSection(
+          icon: Icons.business_outlined,
+          title: 'Pin della tua organizzazione',
+          isExpanded: _isOrgPinsExpanded,
+          onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
+          children: [],
         ),
       ],
     );
   }
   
-  Widget _buildChatArea() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.background,
-      ),
-      child: Column(
-        children: [
-          // Chat Messages Area
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 64,
-                      color: AppColors.textTertiary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Inizia una conversazione',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Chiedimi qualsiasi cosa sui tuoi documenti aziendali',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          // Chat Input Area
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-            ),
-            child: _buildChatInput(),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildChatInput() {
-    return Row(
+  Widget _buildUtilitiesSection() {
+    return _buildExpandableSection(
+      icon: Icons.lightbulb_outline,
+      title: 'Scopri le funzionalità',
+      isExpanded: _isUtilitiesExpanded,
+      onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
       children: [
-        Expanded(
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Chiedimi qualsiasi cosa...',
-              prefixIcon: const Icon(Icons.chat_rounded),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.attach_file_rounded),
-                    onPressed: () => _attachFile(),
-                    tooltip: 'Allega file',
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _sendMessage(),
-                    icon: const Icon(Icons.send_rounded, size: 18),
-                    label: const Text('Invia'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(80, 40),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ),
-            ),
-            maxLines: null,
-            textInputAction: TextInputAction.newline,
-          ),
-        ),
+        _buildUtilityItem(Icons.history, 'Storico Sessioni'),
+        _buildUtilityItem(Icons.summarize_outlined, 'Riassunto sessione'),
+        _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
       ],
-    );
-  }
-  
-  Widget _buildPreviewPanel() {
-    return Container(
-      width: _previewWidth,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          left: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Preview Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.preview_rounded, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Smart Preview Window',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  onPressed: () => setState(() => _isPreviewVisible = false),
-                  tooltip: 'Chiudi preview',
-                ),
-              ],
-            ),
-          ),
-          
-          // Preview Content
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.description_outlined,
-                      size: 48,
-                      color: AppColors.textTertiary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Nessun contenuto da visualizzare',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Seleziona un file o avvia una conversazione per vedere l\'anteprima',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
   
   Widget _buildReferenceItem({
-    required IconData icon,
     required String title,
-    required String subtitle,
-    required Color color,
+    required String badge,
+    required Color badgeColor,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 16,
-          backgroundColor: color.withOpacity(0.1),
-          child: Icon(icon, size: 16, color: color),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
-        ),
-        dense: true,
-        visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: badgeColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              badge,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
   
-  Widget _buildPinCategory({
+  Widget _buildExpandableSection({
     required IconData icon,
     required String title,
     required bool isExpanded,
-    List<Widget>? children,
+    required VoidCallback onToggle,
+    required List<Widget> children,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          leading: Icon(icon, size: 18, color: AppColors.pinActive),
-          title: Text(
-            title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    return Column(
+      children: [
+        InkWell(
+          onTap: onToggle,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: Colors.grey[700]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+                Icon(
+                  isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+              ],
+            ),
           ),
-          initiallyExpanded: isExpanded,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          children: children ?? [],
         ),
-      ),
+        if (isExpanded) ...children,
+      ],
     );
   }
   
-  Widget _buildSubPin({
-    required IconData icon,
+  Widget _buildPinItem({
     required String title,
+    required String badge,
+    bool hasRemove = false,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(left: 32, bottom: 4),
-      child: ListTile(
-        leading: Icon(icon, size: 14, color: AppColors.textSecondary),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 12),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(left: 24, bottom: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                badge,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (hasRemove) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.close,
+                size: 14,
+                color: Colors.grey[500],
+              ),
+            ],
+          ],
         ),
-        dense: true,
-        visualDensity: VisualDensity.compact,
-        onTap: () => _selectPin(title),
       ),
     );
   }
   
-  void _navigateToSettings() {
-    // TODO: Navigate to settings
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings non ancora implementato')),
+  Widget _buildUtilityItem(IconData icon, String title, {bool isRed = false}) {
+    return Container(
+      margin: const EdgeInsets.only(left: 24, bottom: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: isRed ? Colors.red : Colors.grey[600],
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              color: isRed ? Colors.red : Colors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // STARTING PAGE - Pagina di partenza vuota
+  Widget _buildStartingPage() {
+    return Column(
+      children: [
+        // Area principale completamente vuota
+        Expanded(
+          child: Container(
+            color: Colors.white,
+            child: const Center(
+              child: Text(
+                'Smart preview window',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+        
+        // Input area
+        _buildInputArea(),
+      ],
     );
   }
   
-  void _attachFile() {
-    // TODO: Implement file attachment
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Funzione allega file non ancora implementata')),
+  // SELECTION PREVIEW - Quando si clicca su una chat
+  Widget _buildSelectionPreview() {
+    return Column(
+      children: [
+        // Chat messages area
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                // Smart preview window placeholder
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Smart preview window',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Chat bubbles
+                _buildChatBubbles(),
+                
+                const SizedBox(height: 16),
+                
+                // Email selection
+                _buildEmailSelection(),
+              ],
+            ),
+          ),
+        ),
+        
+        // Input area
+        _buildInputArea(),
+      ],
     );
   }
   
-  void _sendMessage() {
-    // TODO: Implement send message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invio messaggi non ancora implementato')),
+  Widget _buildChatBubbles() {
+    return Column(
+      children: [
+        // User message
+        Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              'Cerca la mail in cui ho mandato il preventivo al nostro ultimo cliente e mostrami gli allegati',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ),
+        
+        // Assistant message
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              'Cerca la mail in cui ho mandato il preventivo al nostro ultimo cliente e mostrami gli allegati',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
   
-  void _selectPin(String pinName) {
-    // TODO: Implement pin selection
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Pin selezionato: $pinName')),
+  Widget _buildEmailSelection() {
+    return Column(
+      children: [
+        Text(
+          'Clicca per selezionare la mail corretta',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+        
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: const Text(
+                  'Oggetto mail #1',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: const Text(
+                  'Oggetto mail #2',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 8),
+            
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
+  }
+  
+  Widget _buildInputArea() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: TextField(
+                controller: _messageController,
+                decoration: const InputDecoration(
+                  hintText: 'Chiedimi qualsiasi cosa',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+                maxLines: null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Funzione per selezionare una chat
+  void _selectChat() {
+    setState(() {
+      _isChatSelected = true;
+    });
+  }
+  
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
   }
 }
