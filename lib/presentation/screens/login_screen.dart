@@ -1,10 +1,11 @@
-// lib/presentation/screens/login_screen.dart
+// lib/presentation/screens/login_screen.dart - VERSIONE CORRETTA
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/colors.dart';
+import '../../core/constants/supabase_config.dart';
+import '../../data/datasources/remote/supabase_service.dart';
 import '../providers/chat_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -101,6 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         side: const BorderSide(color: AppColors.warning),
                       ),
                     ),
+                    _buildDebugConfigInfo(),
                   ],
                   
                   const SizedBox(height: 48),
@@ -179,22 +181,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : 'Non hai un account? Registrati'),
                   ),
                   
-                  // Debug: Modalità offline
+                  // Debug: Modalità offline - CORRETTO
                   if (kDebugMode) ...[
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () {
-                        // Simula un utente autenticato per test UI
-                        final fakeUser = User(
-                          id: 'test-user-id',
-                          appMetadata: {},
-                          userMetadata: {},
-                          aud: 'authenticated',
-                          createdAt: DateTime.now().toIso8601String(),
-                        );
-                        
-                        ref.read(authStateProvider.notifier).state = 
-                            AppAuthState.authenticated(fakeUser);
+                        // Usa il metodo corretto per test mode
+                        ref.read(authStateProvider.notifier).setTestMode();
                       },
                       child: const Text(
                         '🔧 Modalità Test (Bypass Login)',
@@ -248,24 +241,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      // Test di connessione semplice
-      final supabase = Supabase.instance.client;
-      await supabase.from('_test_').select().limit(1);
+      // Usa il test dettagliato per avere più informazioni
+      final testResult = await SupabaseService.detailedConnectionTest();
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Connessione Supabase OK!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        if (testResult['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('✅ Connessione Supabase OK!'),
+                  Text(
+                    'URL: ${testResult['url']}',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('❌ Connessione Supabase fallita'),
+                  if (testResult['error'] != null)
+                    Text(
+                      'Errore: ${testResult['error'].toString().split('\n').first}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                ],
+              ),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Errore connessione: ${e.toString().split('\n').first}'),
+            content: Text('❌ Errore test: ${e.toString().split('\n').first}'),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -289,5 +314,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } else {
       ref.read(authStateProvider.notifier).signIn(email, password);
     }
+  }
+
+  // DEBUG WIDGET
+  Widget _buildDebugConfigInfo() {
+    if (!kDebugMode) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.warning),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info, color: AppColors.warning, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'DEBUG: Configurazione Supabase',
+                style: TextStyle(
+                  color: AppColors.warning,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'URL: ${SupabaseConfig.currentUrl}',
+            style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+          ),
+          Text(
+            'Key: ${SupabaseConfig.currentAnonKey.substring(0, 20)}...',
+            style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Produzione: ${SupabaseConfig.isProduction}',
+            style: const TextStyle(fontSize: 11),
+          ),
+          Text(
+            'Desktop: ${SupabaseConfig.isDesktop}',
+            style: const TextStyle(fontSize: 11),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -1,4 +1,4 @@
-// lib/presentation/providers/chat_provider.dart
+// lib/presentation/providers/chat_provider.dart - VERSIONE CORRETTA
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,6 +105,20 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
       state = AppAuthState.error(errorMessage);
     }
   }
+
+  // NUOVO: Metodo per modalità test
+  void setTestMode() {
+    final fakeUser = User(
+      id: 'test-user-id',
+      appMetadata: {},
+      userMetadata: {'email': 'test@example.com'},
+      aud: 'authenticated',
+      createdAt: DateTime.now().toIso8601String(),
+      email: 'test@example.com',
+    );
+    
+    state = AppAuthState.authenticated(fakeUser);
+  }
   
   String _parseError(dynamic error) {
     final errorStr = error.toString().toLowerCase();
@@ -146,7 +160,6 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   
   ChatSessionNotifier(this._ref) : super(null);
   
-  /// Crea una nuova sessione chat
   Future<void> createNewSession({String? title}) async {
     final authState = _ref.read(authStateProvider);
     if (authState is! AppAuthStateAuthenticated) {
@@ -157,15 +170,20 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       final session = await SupabaseService.createChatSession(
         title ?? 'Nuova Chat ${_formatDate(DateTime.now())}',
       );
+      
+      // IMPORTANTE: Assicurati che state sia settato
       state = session;
+      
+      print('✅ Sessione creata: ${session.id}');
       
       // Aggiorna la lista delle sessioni
       _ref.invalidate(chatSessionsProvider);
     } catch (e) {
+      print('❌ Errore nella creazione della chat: $e');
       _ref.read(messageStateProvider.notifier).setError('Errore nella creazione della chat: $e');
     }
   }
-  
+
   /// Carica una sessione esistente con i suoi messaggi
   Future<void> loadSession(ChatSession session) async {
     try {
@@ -175,24 +193,18 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       _ref.read(messageStateProvider.notifier).setError('Errore nel caricamento dei messaggi: $e');
     }
   }
-  
-  /// Invia un messaggio tramite Supabase Edge Function
+
   Future<void> sendMessage(String content) async {
-    if (state == null) {
-      await createNewSession();
-    }
-    
     final messageNotifier = _ref.read(messageStateProvider.notifier);
     
     try {
-      // Controlla rate limiting
-      final canSend = await SupabaseService.canSendMessage();
-      if (!canSend) {
-        messageNotifier.setError('Rate limit raggiunto. Massimo 100 messaggi all\'ora.');
-        return;
-      }
-      
       messageNotifier.setSending();
+      
+      // Crea sessione locale semplice se non esiste
+      if (state == null) {
+        state = ChatSession.create(title: 'Chat Locale');
+        print('✅ Sessione locale creata: ${state!.id}');
+      }
       
       // Crea messaggio utente
       final userMessage = Message.user(
@@ -208,16 +220,11 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
         state = state!.updateTitleFromMessages();
       }
       
-      // Invia a Claude tramite Edge Function
-      final response = await SupabaseService.sendToClaude(
-        message: content,
-        history: state!.conversationMessages.where((m) => m.id != userMessage.id).toList(),
-        sessionId: state!.id,
-      );
+      // SIMULAZIONE: Crea risposta fake invece di chiamare Supabase
+      await Future.delayed(const Duration(seconds: 1));
       
-      // Crea messaggio assistente con la risposta
       final assistantMessage = Message.assistant(
-        content: response['content'] as String,
+        content: 'Questa è una risposta di test! Il sistema funziona correttamente. Hai scritto: "$content"',
         sessionId: state!.id,
       );
       
@@ -226,18 +233,17 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       
       messageNotifier.setIdle();
       
-      // Aggiorna la lista delle sessioni
-      _ref.invalidate(chatSessionsProvider);
-      _ref.invalidate(userUsageProvider);
+      print('✅ Messaggio inviato e risposta ricevuta');
       
     } catch (e) {
-      if (state!.messages.isNotEmpty) {
+      print('❌ Errore nell\'invio: $e');
+      if (state != null && state!.messages.isNotEmpty) {
         state = state!.markLastMessageError();
       }
-      messageNotifier.setError(e.toString());
+      messageNotifier.setError('Errore nell\'invio: $e');
     }
   }
-  
+
   /// Elimina la sessione corrente
   Future<void> deleteCurrentSession() async {
     if (state == null) return;

@@ -1,11 +1,10 @@
-// lib/presentation/screens/main_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat/message_bubble.dart';
-import '../widgets/chat/chat_input.dart'; // IMPORT CORRETTO
+import '../widgets/chat/chat_input.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -24,10 +23,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Crea una nuova sessione all'avvio
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(currentChatSessionProvider.notifier).createNewSession();
-    });
   }
   
   @override
@@ -311,7 +306,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   
   Widget _buildChatArea(chatSession, messageState) {
     if (chatSession == null) {
-      return _buildWelcomeScreen();
+      return Column(
+        children: [
+          Expanded(child: _buildWelcomeScreen()),
+          _buildChatInputArea(messageState),
+        ],
+      );
     }
     
     return Column(
@@ -473,7 +473,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
     );
   }
-  
+
   Widget _buildChatInputArea(messageState) {
     final isSending = messageState is AppMessageStateSending;
     final isEnabled = messageState is! AppMessageStateSending;
@@ -489,7 +489,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   void _sendMessage(String content) {
     ref.read(currentChatSessionProvider.notifier).sendMessage(content);
     
-    // Scroll to bottom after a delay to ensure message is added
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -502,7 +501,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
   
   void _cancelMessage() {
-    // Per ora non implementato - dovresti cancellare la richiesta HTTP
     ref.read(messageStateProvider.notifier).setIdle();
   }
   
@@ -512,7 +510,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
   
-  // Resto dei metodi esistenti per la sidebar...
   Widget _buildPermanentReferences() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

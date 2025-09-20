@@ -39,7 +39,7 @@ class AppTextStyles {
   static const TextStyle bodySmall = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    color: AppColors.textSecondary,
+    color: Color.fromARGB(255, 33, 34, 37),
     height: 1.3,
   );
   
@@ -47,14 +47,14 @@ class AppTextStyles {
   static const TextStyle caption = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary,
+    color: Color.fromARGB(255, 48, 51, 56),
     letterSpacing: 0.5,
   );
   
   static const TextStyle captionSmall = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary,
+    color: Color.fromARGB(255, 36, 38, 43),
     letterSpacing: 0.3,
   );
   
@@ -104,14 +104,14 @@ class AppTextStyles {
   static const TextStyle inputHint = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
-    color: AppColors.textTertiary,
+    color: Color.fromARGB(255, 41, 44, 49),
   );
 
   // Section header styles
   static const TextStyle sectionHeader = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary,
+    color: Color.fromARGB(255, 35, 37, 42),
     letterSpacing: 0.5,
   );
 }
