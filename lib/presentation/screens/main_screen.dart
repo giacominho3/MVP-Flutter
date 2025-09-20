@@ -16,7 +16,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isUtilitiesExpanded = false;
   final TextEditingController _messageController = TextEditingController();
   
-  // Stato per gestire se è stata selezionata una chat
   bool _isChatSelected = false;
   
   @override
@@ -26,10 +25,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       backgroundColor: AppColors.background,
       body: Row(
         children: [
-          // Left Sidebar
           _buildLeftSidebar(),
-          
-          // Main Content Area
           Expanded(
             child: _isChatSelected ? _buildSelectionPreview() : _buildStartingPage(),
           ),
@@ -49,27 +45,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       child: Column(
         children: [
-          // Header con versione beta
           _buildSidebarHeader(),
-          
-          // Contenuto scrollabile
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Riferimenti della Sessione
                   _buildSessionReferences(),
-                  
                   const SizedBox(height: 24),
-                  
-                  // Riferimenti Permanenti
                   _buildPermanentReferences(),
-                  
                   const SizedBox(height: 24),
-                  
-                  // Utilities Section
                   _buildUtilitiesSection(),
                 ],
               ),
@@ -90,7 +76,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       child: Row(
         children: [
-          // Logo/Icon
           Container(
             width: 32,
             height: 32,
@@ -104,10 +89,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               size: 20,
             ),
           ),
-          
           const SizedBox(width: 12),
-          
-          // Versione
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -121,10 +103,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ),
             ],
           ),
-          
           const Spacer(),
-          
-          // Beta badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -158,12 +137,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             letterSpacing: 0.5,
           ),
         ),
-        
         const SizedBox(height: 12),
         const Divider(height: 1, color: AppColors.divider),
         const SizedBox(height: 12),
-        
-        // File reference item
         _buildReferenceItem(
           title: 'Nome File #1',
           badge: 'G DRIVE',
@@ -186,12 +162,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             letterSpacing: 0.5,
           ),
         ),
-        
         const SizedBox(height: 12),
         const Divider(height: 1, color: AppColors.divider),
         const SizedBox(height: 12),
-        
-        // Personal pins section
         _buildExpandableSection(
           icon: Icons.person_outline,
           title: 'I tuoi pin personali',
@@ -212,10 +185,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
           ],
         ),
-        
         const SizedBox(height: 8),
-        
-        // Organization pins section
         _buildExpandableSection(
           icon: Icons.business_outlined,
           title: 'Pin della tua organizzazione',
@@ -307,10 +277,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                   ),
                 ),
-                Icon(
-                  isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: AppColors.iconSecondary,
+                SizedBox(
+                  width: 16,
+                  child: Icon(
+                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: AppColors.iconSecondary,
+                  ),
                 ),
               ],
             ),
@@ -361,11 +334,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
             if (hasRemove) ...[
               const SizedBox(width: 8),
-              Icon(
-                Icons.close,
-                size: 14,
-                color: AppColors.iconSecondary,
+              SizedBox(
+                width: 16,
+                child: Icon(
+                  Icons.close,
+                  size: 16,
+                  color: AppColors.iconSecondary,
+                ),
               ),
+            ] else ...[
+              const SizedBox(width: 24),
             ],
           ],
         ),
@@ -398,11 +376,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  // STARTING PAGE - Pagina di partenza vuota
   Widget _buildStartingPage() {
     return Column(
       children: [
-        // Area principale completamente vuota
         Expanded(
           child: Container(
             color: AppColors.background,
@@ -417,24 +393,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
           ),
         ),
-        
-        // Input area
         _buildInputArea(),
       ],
     );
   }
   
-  // SELECTION PREVIEW - Quando si clicca su una chat
   Widget _buildSelectionPreview() {
     return Column(
       children: [
-        // Chat messages area
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                // Smart preview window placeholder
                 Expanded(
                   child: Container(
                     width: double.infinity,
@@ -454,22 +425,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                   ),
                 ),
-                
                 const SizedBox(height: 16),
-                
-                // Chat bubbles
                 _buildChatBubbles(),
-                
                 const SizedBox(height: 16),
-                
-                // Email selection
                 _buildEmailSelection(),
               ],
             ),
           ),
         ),
-        
-        // Input area
         _buildInputArea(),
       ],
     );
@@ -478,7 +441,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget _buildChatBubbles() {
     return Column(
       children: [
-        // User message
         Align(
           alignment: Alignment.centerRight,
           child: Container(
@@ -498,8 +460,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
           ),
         ),
-        
-        // Assistant message
         Align(
           alignment: Alignment.centerLeft,
           child: Container(
@@ -532,9 +492,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             color: AppColors.textSecondary,
           ),
         ),
-        
         const SizedBox(height: 12),
-        
         Row(
           children: [
             Expanded(
@@ -554,9 +512,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ),
               ),
             ),
-            
             const SizedBox(width: 12),
-            
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(12),
@@ -574,9 +530,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ),
               ),
             ),
-            
             const SizedBox(width: 8),
-            
             IconButton(
               onPressed: () {},
               icon: const Icon(
@@ -629,7 +583,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
   
-  // Funzione per selezionare una chat
   void _selectChat() {
     setState(() {
       _isChatSelected = true;
