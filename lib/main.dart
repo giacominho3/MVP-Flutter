@@ -17,10 +17,10 @@ class MyHttpOverrides extends HttpOverrides {
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
       ..badCertificateCallback = (X509Certificate cert, String host, int port) {
-        // Accetta tutti i certificati solo per Supabase in debug mode
-        if (kDebugMode && (host.contains('supabase.co') || host.contains('supabase.in'))) {
-          print('🔓 Accepting certificate for $host (debug mode)');
-          return true;
+        // IN SVILUPPO: Accetta TUTTI i certificati
+        if (kDebugMode) {
+          print('🔓 Accepting ALL certificates in debug mode for host: $host');
+          return true; // ACCETTA TUTTO IN DEBUG
         }
         return false;
       }
@@ -42,20 +42,31 @@ Future<void> main() async {
   
   try {
     print('🚀 Inizializzazione Supabase...');
-    
-    // Inizializza Supabase con configurazione base
-    await Supabase.initialize(
-      url: SupabaseConfig.currentUrl,
-      anonKey: SupabaseConfig.currentAnonKey,
-      debug: kDebugMode,
-      authOptions: const FlutterAuthClientOptions(
-        authFlowType: AuthFlowType.pkce,
-      ),
-    );
+      
+  // Inizializza Supabase con configurazione base
+  await Supabase.initialize(
+    url: SupabaseConfig.currentUrl,
+    anonKey: SupabaseConfig.currentAnonKey,
+    debug: kDebugMode,
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.implicit, // CAMBIA da pkce a implicit
+      autoRefreshToken: true,
+    ),
+  );
     
     print('✅ Supabase inizializzato con successo: ${SupabaseConfig.currentUrl}');
-    
-  } catch (e) {
+
+    final testAuth = await Supabase.instance.client.auth.signInWithPassword(
+      email: 'test@test.com',
+      password: 'test123',
+    ).catchError((e) {
+      print('🔴 Test Auth fallito: $e');
+      return AuthResponse(session: null, user: null);
+    });
+    print('🟢 Test Auth: ${testAuth.user != null ? 'OK' : 'FAILED'}');
+    // FINE TEST DEBUG
+        
+    } catch (e) {
     print('❌ Errore nell\'inizializzazione di Supabase: $e');
     print('📝 Continuando in modalità offline...');
     // Continua comunque l'app in modalità offline

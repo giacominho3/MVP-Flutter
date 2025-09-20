@@ -160,61 +160,75 @@ class SupabaseService {
   }
   
   // ============= CLAUDE CHAT - USA LA TUA EDGE FUNCTION! =============
-  
-  static Future<Map<String, dynamic>> sendToClaude({
-    required String message,
-    required List<Message> history,
-    required String sessionId,
-  }) async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
     
-    try {
-      if (kDebugMode) {
-        print('🤖 Sending message to Claude via edge function...');
-        print('📝 Message: $message');
-        print('🆔 Session: $sessionId');
+    static Future<Map<String, dynamic>> sendToClaude({
+      required String message,
+      required List<Message> history,
+      required String sessionId,
+    }) async {
+      if (!isAuthenticated) throw Exception('User not authenticated');
+      
+      try {
+        if (kDebugMode) {
+          print('🤖 Sending message to Claude via edge function...');
+          print('📝 Message: $message');
+          print('🆔 Session: $sessionId');
+        }
+        
+        // Prepara la history nel formato corretto per la tua edge function
+        final formattedHistory = history.map((m) => {
+          'role': m.isUser ? 'user' : 'assistant',
+          'content': m.content,
+        }).toList();
+        
+        // Chiama la TUA edge function claude-proxy
+        final response = await client.functions.invoke(
+          'claude-proxy', // Il nome della TUA edge function
+          body: {
+            'message': message,
+            'session_id': sessionId, // NOTA: underscore come nella tua edge function
+            'history': formattedHistory,
+          },
+        );
+        
+        if (kDebugMode) {
+          print('📥 Edge function response data: ${response.data}');
+        }
+        
+        // CORREZIONE: Verifica errori nel nuovo formato
+        if (response.data == null) {
+          throw Exception('Nessuna risposta dalla edge function');
+        }
+        
+        // Se la risposta contiene un errore
+        if (response.data is Map && response.data['error'] != null) {
+          throw Exception(response.data['error']);
+        }
+        
+        // Se la risposta è una stringa di errore
+        if (response.data is String && response.data.toString().toLowerCase().contains('error')) {
+          throw Exception(response.data);
+        }
+        
+        // Estrai i dati dalla risposta
+        final responseData = response.data as Map<String, dynamic>;
+        
+        // La tua edge function ritorna: {content, tokens_used, cost_cents}
+        return {
+          'content': responseData['content'] ?? '',
+          'tokens_used': responseData['tokens_used'] ?? 0,
+          'cost_cents': responseData['cost_cents'] ?? 0,
+        };
+        
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ Error sending to Claude: $e');
+          print('Stack trace: ${StackTrace.current}');
+        }
+        rethrow;
       }
-      
-      // Prepara la history nel formato corretto per la tua edge function
-      final formattedHistory = history.map((m) => {
-        'role': m.isUser ? 'user' : 'assistant',
-        'content': m.content,
-      }).toList();
-      
-      // Chiama la TUA edge function claude-proxy
-      final response = await client.functions.invoke(
-        'claude-proxy', // Il nome della TUA edge function
-        body: {
-          'message': message,
-          'session_id': sessionId, // NOTA: underscore come nella tua edge function
-          'history': formattedHistory,
-        },
-      );
-      
-      if (kDebugMode) {
-        print('📥 Edge function response: ${response.data}');
-      }
-      
-      // Gestisci errori
-      if (response.error != null) {
-        throw Exception(response.error!);
-      }
-      
-      // La tua edge function ritorna: {content, tokens_used, cost_cents}
-      return {
-        'content': response.data['content'] ?? '',
-        'tokens_used': response.data['tokens_used'] ?? 0,
-        'cost_cents': response.data['cost_cents'] ?? 0,
-      };
-      
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error sending to Claude: $e');
-      }
-      rethrow;
     }
-  }
-  
+
   // ============= USAGE TRACKING =============
   
   static Future<Map<String, int>> getUserUsage() async {

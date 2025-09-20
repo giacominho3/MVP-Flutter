@@ -184,19 +184,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Debug: Modalità offline - CORRETTO
                   if (kDebugMode) ...[
                     const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        // Usa il metodo corretto per test mode
-                        ref.read(authStateProvider.notifier).setTestMode();
-                      },
-                      child: const Text(
-                        '🔧 Modalità Test (Bypass Login)',
-                        style: TextStyle(
-                          color: AppColors.warning,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
                   ],
                   
                   // Error Message
@@ -241,56 +228,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      // Usa il test dettagliato per avere più informazioni
-      final testResult = await SupabaseService.detailedConnectionTest();
+      final isConnected = await SupabaseService.testConnection();
       
       if (mounted) {
-        if (testResult['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('✅ Connessione Supabase OK!'),
-                  Text(
-                    'URL: ${testResult['url']}',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 4),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isConnected 
+              ? '✅ Connessione Supabase OK!'
+              : '❌ Connessione Supabase fallita'
             ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('❌ Connessione Supabase fallita'),
-                  if (testResult['error'] != null)
-                    Text(
-                      'Errore: ${testResult['error'].toString().split('\n').first}',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                ],
-              ),
-              backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 6),
-            ),
-          );
-        }
+            backgroundColor: isConnected ? AppColors.success : AppColors.error,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Errore test: ${e.toString().split('\n').first}'),
+            content: Text('❌ Errore: ${e.toString()}'),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
