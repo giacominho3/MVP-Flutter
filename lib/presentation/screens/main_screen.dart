@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/colors.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -22,7 +23,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Row(
         children: [
           // Left Sidebar
@@ -41,9 +42,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return Container(
       width: 340,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.sidebarBackground,
         border: Border(
-          right: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          right: BorderSide(color: AppColors.sidebarBorder, width: 1),
         ),
       ),
       child: Column(
@@ -84,7 +85,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          bottom: BorderSide(color: AppColors.divider, width: 1),
         ),
       ),
       child: Row(
@@ -94,12 +95,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.smart_toy_rounded,
-              color: Colors.white,
+              color: AppColors.background,
               size: 20,
             ),
           ),
@@ -115,7 +116,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -127,7 +128,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF69B4),
+              color: AppColors.badgeBeta,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
@@ -153,20 +154,20 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: Colors.grey[600],
+            color: AppColors.textSecondary,
             letterSpacing: 0.5,
           ),
         ),
         
         const SizedBox(height: 12),
-        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const Divider(height: 1, color: AppColors.divider),
         const SizedBox(height: 12),
         
         // File reference item
         _buildReferenceItem(
           title: 'Nome File #1',
           badge: 'G DRIVE',
-          badgeColor: const Color(0xFF10B981),
+          badgeColor: AppColors.badgeGoogleDrive,
         ),
       ],
     );
@@ -181,13 +182,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: Colors.grey[600],
+            color: AppColors.textSecondary,
             letterSpacing: 0.5,
           ),
         ),
         
         const SizedBox(height: 12),
-        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const Divider(height: 1, color: AppColors.divider),
         const SizedBox(height: 12),
         
         // Personal pins section
@@ -255,7 +256,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
-                color: Colors.black,
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -294,7 +295,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: Colors.grey[700]),
+                Icon(icon, size: 16, color: AppColors.iconPrimary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -302,14 +303,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
                 Icon(
                   isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                   size: 16,
-                  color: Colors.grey[600],
+                  color: AppColors.iconSecondary,
                 ),
               ],
             ),
@@ -339,14 +340,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
-                  color: Colors.black,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981),
+                color: AppColors.badgeGoogleDrive,
                 borderRadius: BorderRadius.circular(3),
               ),
               child: Text(
@@ -363,7 +364,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               Icon(
                 Icons.close,
                 size: 14,
-                color: Colors.grey[500],
+                color: AppColors.iconSecondary,
               ),
             ],
           ],
@@ -381,7 +382,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           Icon(
             icon,
             size: 14,
-            color: isRed ? Colors.red : Colors.grey[600],
+            color: isRed ? AppColors.iconError : AppColors.iconSecondary,
           ),
           const SizedBox(width: 8),
           Text(
@@ -389,7 +390,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w400,
-              color: isRed ? Colors.red : Colors.black,
+              color: isRed ? AppColors.iconError : AppColors.textPrimary,
             ),
           ),
         ],
@@ -404,12 +405,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         // Area principale completamente vuota
         Expanded(
           child: Container(
-            color: Colors.white,
+            color: AppColors.background,
             child: const Center(
               child: Text(
                 'Smart preview window',
                 style: TextStyle(
-                  color: Colors.grey,
+                  color: AppColors.textTertiary,
                   fontSize: 16,
                 ),
               ),
@@ -438,15 +439,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: AppColors.previewBackground,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                      border: Border.all(color: AppColors.previewBorder),
                     ),
                     child: const Center(
                       child: Text(
                         'Smart preview window',
                         style: TextStyle(
-                          color: Colors.grey,
+                          color: AppColors.textTertiary,
                           fontSize: 16,
                         ),
                       ),
@@ -485,14 +486,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
+              color: AppColors.userMessageBg,
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Text(
               'Cerca la mail in cui ho mandato il preventivo al nostro ultimo cliente e mostrami gli allegati',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.black,
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -505,14 +506,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             constraints: const BoxConstraints(maxWidth: 600),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
+              color: AppColors.assistantMessageBg,
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Text(
               'Cerca la mail in cui ho mandato il preventivo al nostro ultimo cliente e mostrami gli allegati',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.black,
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -528,7 +529,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           'Clicca per selezionare la mail corretta',
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey[600],
+            color: AppColors.textSecondary,
           ),
         ),
         
@@ -540,15 +541,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.background,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  border: Border.all(color: AppColors.outline),
                 ),
                 child: const Text(
                   'Oggetto mail #1',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.black,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -560,15 +561,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.background,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  border: Border.all(color: AppColors.outline),
                 ),
                 child: const Text(
                   'Oggetto mail #2',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.black,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -581,7 +582,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               icon: const Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: Colors.grey,
+                color: AppColors.iconSecondary,
               ),
             ),
           ],
@@ -594,9 +595,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.background,
         border: Border(
-          top: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          top: BorderSide(color: AppColors.outline, width: 1),
         ),
       ),
       child: Row(
@@ -605,9 +606,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.inputBackground,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: AppColors.inputBorder),
               ),
               child: TextField(
                 controller: _messageController,
@@ -615,7 +616,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   hintText: 'Chiedimi qualsiasi cosa',
                   border: InputBorder.none,
                   hintStyle: TextStyle(
-                    color: Colors.grey,
+                    color: AppColors.textTertiary,
                     fontSize: 14,
                   ),
                 ),
