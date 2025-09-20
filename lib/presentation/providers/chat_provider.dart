@@ -2,16 +2,15 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/constants/storage_keys.dart';
-import '../../data/datasources/remote/claude_api_service.dart';
+import '../../data/datasources/remote/supabase_service.dart';
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 
-// Provider per il service API Claude
-final claudeApiServiceProvider = Provider<ClaudeApiService>((ref) {
-  return ClaudeApiService();
+// Provider per lo stato di autenticazione
+final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
+  return AuthStateNotifier();
 });
 
 // Provider per la sessione chat corrente
@@ -24,47 +23,149 @@ final messageStateProvider = StateNotifierProvider<MessageStateNotifier, Message
   return MessageStateNotifier();
 });
 
-// Provider per le impostazioni API
-final apiSettingsProvider = StateNotifierProvider<ApiSettingsNotifier, ApiSettings>((ref) {
-  return ApiSettingsNotifier();
+// Provider per le sessioni chat dell'utente
+final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  if (authState is! AuthStateAuthenticated) {
+    return [];
+  }
+  
+  try {
+    return await SupabaseService.getChatSessions();
+  } catch (e) {
+    throw Exception('Errore nel caricamento delle chat: $e');
+  }
 });
+
+// Provider per l'usage dell'utente
+final userUsageProvider = FutureProvider<Map<String, int>>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  if (authState is! AuthStateAuthenticated) {
+    return {'messages': 0, 'tokens': 0, 'cost_cents': 0};
+  }
+  
+  try {
+    return await SupabaseService.getUserUsage();
+  } catch (e) {
+    return {'messages': 0, 'tokens': 0, 'cost_cents': 0};
+  }
+});
+
+class AuthStateNotifier extends StateNotifier<AuthState> {
+  AuthStateNotifier() : super(const AuthState.loading()) {
+    _init();
+  }
+  
+  void _init() {
+    // Controlla se l'utente è già loggato
+    final user = SupabaseService.currentUser;
+    if (user != null) {
+      state = AuthState.authenticated(user);
+    } else {
+      state = const AuthState.unauthenticated();
+    }
+    
+    // Ascolta i cambiamenti di auth
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final user = data.session?.user;
+      if (user != null) {
+        state = AuthState.authenticated(user);
+      } else {
+        state = const AuthState.unauthenticated();
+      }
+    });
+  }
+  
+  Future<void> signIn(String email, String password) async {
+    state = const AuthState.loading();
+    try {
+      final response = await SupabaseService.signInWithEmail(email, password);
+      if (response.user != null) {
+        state = AuthState.authenticated(response.user!);
+      } else {
+        state = const AuthState.error('Login failed');
+      }
+    } catch (e) {
+      state = AuthState.error(e.toString());
+    }
+  }
+  
+  Future<void> signUp(String email, String password) async {
+    state = const AuthState.loading();
+    try {
+      final response = await SupabaseService.signUp(email, password);
+      if (response.user != null) {
+        state = AuthState.authenticated(response.user!);
+      } else {
+        state = const AuthState.error('Registration failed');
+      }
+    } catch (e) {
+      state = AuthState.error(e.toString());
+    }
+  }
+  
+  Future<void> signOut() async {
+    try {
+      await SupabaseService.signOut();
+      state = const AuthState.unauthenticated();
+    } catch (e) {
+      state = AuthState.error(e.toString());
+    }
+  }
+}
 
 class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   final Ref _ref;
-  StreamSubscription<String>? _streamSubscription;
   
   ChatSessionNotifier(this._ref) : super(null);
   
   /// Crea una nuova sessione chat
-  void createNewSession({String? title}) {
-    final session = ChatSession.create(title: title);
-    state = session;
-  }
-  
-  /// Carica una sessione esistente
-  void loadSession(ChatSession session) {
-    state = session;
-  }
-  
-  /// Invia un messaggio e gestisce la risposta streaming
-  Future<void> sendMessage(String content) async {
-    if (state == null) {
-      createNewSession();
-    }
-    
-    final messageNotifier = _ref.read(messageStateProvider.notifier);
-    final apiService = _ref.read(claudeApiServiceProvider);
-    final apiSettings = _ref.read(apiSettingsProvider);
-    
-    // Controlla se l'API key è configurata
-    if (apiSettings.apiKey == null || apiSettings.apiKey!.isEmpty) {
-      messageNotifier.setError('API key non configurata. Vai nelle impostazioni.');
-      return;
+  Future<void> createNewSession({String? title}) async {
+    final authState = _ref.read(authStateProvider);
+    if (authState is! AuthStateAuthenticated) {
+      throw Exception('User not authenticated');
     }
     
     try {
-      // Imposta API key nel service
-      apiService.setApiKey(apiSettings.apiKey!);
+      final session = await SupabaseService.createChatSession(
+        title ?? 'Nuova Chat ${_formatDate(DateTime.now())}',
+      );
+      state = session;
+      
+      // Aggiorna la lista delle sessioni
+      _ref.invalidate(chatSessionsProvider);
+    } catch (e) {
+      _ref.read(messageStateProvider.notifier).setError('Errore nella creazione della chat: $e');
+    }
+  }
+  
+  /// Carica una sessione esistente con i suoi messaggi
+  Future<void> loadSession(ChatSession session) async {
+    try {
+      final messages = await SupabaseService.getMessages(session.id);
+      state = session.copyWith(messages: messages);
+    } catch (e) {
+      _ref.read(messageStateProvider.notifier).setError('Errore nel caricamento dei messaggi: $e');
+    }
+  }
+  
+  /// Invia un messaggio tramite Supabase Edge Function
+  Future<void> sendMessage(String content) async {
+    if (state == null) {
+      await createNewSession();
+    }
+    
+    final messageNotifier = _ref.read(messageStateProvider.notifier);
+    
+    try {
+      // Controlla rate limiting
+      final canSend = await SupabaseService.canSendMessage();
+      if (!canSend) {
+        messageNotifier.setError('Rate limit raggiunto. Massimo 100 messaggi all\'ora.');
+        return;
+      }
+      
+      messageNotifier.setSending();
       
       // Crea messaggio utente
       final userMessage = Message.user(
@@ -80,61 +181,58 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
         state = state!.updateTitleFromMessages();
       }
       
-      messageNotifier.setSending();
-      
-      // Crea messaggio vuoto per l'assistente
-      final assistantMessage = Message.assistant(
-        content: '',
+      // Invia a Claude tramite Edge Function
+      final response = await SupabaseService.sendToClaude(
+        message: content,
+        history: state!.conversationMessages.where((m) => m.id != userMessage.id).toList(),
         sessionId: state!.id,
       );
+      
+      // Crea messaggio assistente con la risposta
+      final assistantMessage = Message.assistant(
+        content: response['content'] as String,
+        sessionId: state!.id,
+      );
+      
+      // Aggiungi risposta alla sessione
       state = state!.addMessage(assistantMessage);
       
-      // Inizia streaming della risposta
-      String fullResponse = '';
-      final stream = apiService.sendMessage(
-        message: content,
-        history: state!.conversationMessages.where((m) => m.id != assistantMessage.id).toList(),
-      );
+      messageNotifier.setIdle();
       
-      _streamSubscription?.cancel();
-      _streamSubscription = stream.listen(
-        (chunk) {
-          fullResponse += chunk;
-          state = state!.updateLastMessage(fullResponse);
-        },
-        onDone: () {
-          messageNotifier.setIdle();
-        },
-        onError: (error) {
-          state = state!.markLastMessageError();
-          messageNotifier.setError(error.toString());
-        },
-      );
+      // Aggiorna la lista delle sessioni
+      _ref.invalidate(chatSessionsProvider);
+      _ref.invalidate(userUsageProvider);
       
     } catch (e) {
-      state = state!.markLastMessageError();
+      if (state!.messages.isNotEmpty) {
+        state = state!.markLastMessageError();
+      }
       messageNotifier.setError(e.toString());
     }
   }
   
-  /// Cancella l'invio del messaggio corrente
-  void cancelMessage() {
-    _streamSubscription?.cancel();
-    _streamSubscription = null;
-    _ref.read(messageStateProvider.notifier).setIdle();
+  /// Elimina la sessione corrente
+  Future<void> deleteCurrentSession() async {
+    if (state == null) return;
+    
+    try {
+      await SupabaseService.deleteChatSession(state!.id);
+      state = null;
+      
+      // Aggiorna la lista delle sessioni
+      _ref.invalidate(chatSessionsProvider);
+    } catch (e) {
+      _ref.read(messageStateProvider.notifier).setError('Errore nell\'eliminazione della chat: $e');
+    }
   }
   
-  /// Rimuove la sessione corrente
+  /// Rimuove la sessione corrente (solo locale)
   void clearSession() {
-    _streamSubscription?.cancel();
-    _streamSubscription = null;
     state = null;
   }
   
-  @override
-  void dispose() {
-    _streamSubscription?.cancel();
-    super.dispose();
+  static String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 }
 
@@ -146,60 +244,35 @@ class MessageStateNotifier extends StateNotifier<MessageState> {
   void setError(String message) => state = MessageState.error(message);
 }
 
-class ApiSettingsNotifier extends StateNotifier<ApiSettings> {
-  static const _storage = FlutterSecureStorage();
+// Modelli per lo stato di autenticazione
+sealed class AuthState {
+  const AuthState();
   
-  ApiSettingsNotifier() : super(const ApiSettings()) {
-    _loadApiKey();
-  }
-  
-  Future<void> _loadApiKey() async {
-    try {
-      final apiKey = await _storage.read(key: StorageKeys.claudeApiKey);
-      if (apiKey != null && apiKey.isNotEmpty) {
-        state = state.copyWith(apiKey: apiKey);
-      }
-    } catch (e) {
-      // Ignora errori di caricamento
-    }
-  }
-  
-  Future<void> setApiKey(String apiKey) async {
-    try {
-      await _storage.write(key: StorageKeys.claudeApiKey, value: apiKey);
-      state = state.copyWith(apiKey: apiKey);
-    } catch (e) {
-      // Gestisci errore
-      throw Exception('Impossibile salvare l\'API key: $e');
-    }
-  }
-  
-  Future<void> clearApiKey() async {
-    try {
-      await _storage.delete(key: StorageKeys.claudeApiKey);
-      state = state.copyWith(apiKey: null);
-    } catch (e) {
-      // Gestisci errore
-      throw Exception('Impossibile rimuovere l\'API key: $e');
-    }
-  }
-  
-  Future<bool> testConnection() async {
-    if (state.apiKey == null || state.apiKey!.isEmpty) {
-      return false;
-    }
-    
-    try {
-      final apiService = ClaudeApiService();
-      apiService.setApiKey(state.apiKey!);
-      return await apiService.testConnection();
-    } catch (e) {
-      return false;
-    }
-  }
+  const factory AuthState.loading() = AuthStateLoading;
+  const factory AuthState.authenticated(User user) = AuthStateAuthenticated;
+  const factory AuthState.unauthenticated() = AuthStateUnauthenticated;
+  const factory AuthState.error(String message) = AuthStateError;
 }
 
-// Modelli per lo stato
+class AuthStateLoading extends AuthState {
+  const AuthStateLoading();
+}
+
+class AuthStateAuthenticated extends AuthState {
+  final User user;
+  const AuthStateAuthenticated(this.user);
+}
+
+class AuthStateUnauthenticated extends AuthState {
+  const AuthStateUnauthenticated();
+}
+
+class AuthStateError extends AuthState {
+  final String message;
+  const AuthStateError(this.message);
+}
+
+// Modelli per lo stato dei messaggi
 sealed class MessageState {
   const MessageState();
   
@@ -219,14 +292,4 @@ class MessageStateSending extends MessageState {
 class MessageStateError extends MessageState {
   final String message;
   const MessageStateError(this.message);
-}
-
-class ApiSettings {
-  final String? apiKey;
-  
-  const ApiSettings({this.apiKey});
-  
-  ApiSettings copyWith({String? apiKey}) {
-    return ApiSettings(apiKey: apiKey ?? this.apiKey);
-  }
 }

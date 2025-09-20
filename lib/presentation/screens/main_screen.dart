@@ -34,23 +34,24 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget build(BuildContext context) {
     final chatSession = ref.watch(currentChatSessionProvider);
     final messageState = ref.watch(messageStateProvider);
-    final apiSettings = ref.watch(apiSettingsProvider);
+    final authState = ref.watch(authStateProvider);
+    final userUsage = ref.watch(userUsageProvider);
     
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
       body: Row(
         children: [
-          _buildLeftSidebar(),
+          _buildLeftSidebar(authState, userUsage),
           Expanded(
-            child: _buildChatArea(chatSession, messageState, apiSettings),
+            child: _buildChatArea(chatSession, messageState),
           ),
         ],
       ),
     );
   }
   
-  Widget _buildLeftSidebar() {
+  Widget _buildLeftSidebar(authState, userUsageAsync) {
     return Container(
       width: 340,
       decoration: const BoxDecoration(
@@ -61,14 +62,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       child: Column(
         children: [
-          _buildSidebarHeader(),
+          _buildSidebarHeader(authState),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildApiKeyStatus(),
+                  _buildUsageStatus(userUsageAsync),
                   const SizedBox(height: 16),
                   _buildSessionReferences(),
                   const SizedBox(height: 24),
@@ -84,7 +85,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
   
-  Widget _buildSidebarHeader() {
+  Widget _buildSidebarHeader(authState) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -108,20 +109,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'v.0.0.1',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'AI Assistant',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+                if (authState is AuthStateAuthenticated)
+                  Text(
+                    authState.user.email ?? 'Utente',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
           ),
-          const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -137,56 +147,110 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          PopupMenuButton(
+            icon: const Icon(Icons.more_vert, size: 16),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                onTap: () {
+                  ref.read(authStateProvider.notifier).signOut();
+                },
+                child: const Row(
+                  children: [
+                    Icon(Icons.logout, size: 16),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
   
-  Widget _buildApiKeyStatus() {
-    final apiSettings = ref.watch(apiSettingsProvider);
-    final hasApiKey = apiSettings.apiKey != null && apiSettings.apiKey!.isNotEmpty;
-    
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: hasApiKey ? AppColors.success.withOpacity(0.1) : AppColors.warning.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: hasApiKey ? AppColors.success : AppColors.warning,
-          width: 1,
+  Widget _buildUsageStatus(AsyncValue<Map<String, int>> userUsageAsync) {
+    return userUsageAsync.when(
+      data: (usage) {
+        final messages = usage['messages'] ?? 0;
+        final costCents = usage['cost_cents'] ?? 0;
+        final costDollars = costCents / 100;
+        
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.success.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.success, width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.analytics, color: AppColors.success, size: 16),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Usage questo mese',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$messages/100 messaggi',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                'Costo: \$${costDollars.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Caricamento usage...',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            hasApiKey ? Icons.check_circle : Icons.warning,
-            color: hasApiKey ? AppColors.success : AppColors.warning,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              hasApiKey ? 'API Claude configurata' : 'Configura API Claude',
-              style: TextStyle(
-                fontSize: 12,
-                color: hasApiKey ? AppColors.success : AppColors.warning,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          if (!hasApiKey)
-            TextButton(
-              onPressed: _showApiKeyDialog,
-              style: TextButton.styleFrom(
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              ),
-              child: const Text(
-                'Configura',
-                style: TextStyle(fontSize: 11),
-              ),
-            ),
-        ],
+      error: (error, stack) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text(
+          'Errore nel caricamento usage',
+          style: TextStyle(fontSize: 12, color: AppColors.warning),
+        ),
       ),
     );
   }
@@ -200,7 +264,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
+            const Text(
               'Riferimenti della Sessione',
               style: TextStyle(
                 fontSize: 12,
@@ -245,9 +309,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
   
-  Widget _buildChatArea(chatSession, messageState, apiSettings) {
+  Widget _buildChatArea(chatSession, messageState) {
     if (chatSession == null) {
-      return _buildWelcomeScreen(apiSettings);
+      return _buildWelcomeScreen();
     }
     
     return Column(
@@ -263,28 +327,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
   
-  Widget _buildWelcomeScreen(apiSettings) {
-    final hasApiKey = apiSettings.apiKey != null && apiSettings.apiKey!.isNotEmpty;
-    
-    return Center(
+  Widget _buildWelcomeScreen() {
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(40),
-            ),
-            child: const Icon(
-              Icons.smart_toy_rounded,
-              size: 40,
-              color: AppColors.primary,
-            ),
+          Icon(
+            Icons.smart_toy_rounded,
+            size: 64,
+            color: AppColors.primary,
           ),
-          const SizedBox(height: 24),
-          const Text(
+          SizedBox(height: 24),
+          Text(
             'Benvenuto in AI Assistant',
             style: TextStyle(
               fontSize: 24,
@@ -292,39 +346,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'La tua piattaforma AI per automatizzare i processi aziendali',
+          SizedBox(height: 8),
+          Text(
+            'Scrivi un messaggio per iniziare una nuova conversazione',
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 32),
-          if (!hasApiKey) ...[
-            ElevatedButton.icon(
-              onPressed: _showApiKeyDialog,
-              icon: const Icon(Icons.key),
-              label: const Text('Configura API Claude'),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Configura la tua API key di Claude per iniziare',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ] else ...[
-            const Text(
-              'Scrivi un messaggio per iniziare una nuova conversazione',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -369,6 +399,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             },
             icon: const Icon(Icons.add),
             tooltip: 'Nuova chat',
+          ),
+          IconButton(
+            onPressed: () {
+              ref.read(currentChatSessionProvider.notifier).deleteCurrentSession();
+            },
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Elimina chat',
           ),
         ],
       ),
@@ -465,7 +502,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
   
   void _cancelMessage() {
-    ref.read(currentChatSessionProvider.notifier).cancelMessage();
+    // Per ora non implementato - dovresti cancellare la richiesta HTTP
+    ref.read(messageStateProvider.notifier).setIdle();
   }
   
   void _retryMessage(Message message) {
@@ -474,77 +512,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
   
-  void _showApiKeyDialog() {
-    final apiSettings = ref.read(apiSettingsProvider);
-    final controller = TextEditingController(text: apiSettings.apiKey ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Configura API Claude'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Inserisci la tua API key di Claude:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                hintText: 'sk-ant-api...',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Puoi ottenere la tua API key su console.anthropic.com',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final apiKey = controller.text.trim();
-              if (apiKey.isNotEmpty) {
-                try {
-                  await ref.read(apiSettingsProvider.notifier).setApiKey(apiKey);
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('API key salvata con successo')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Errore: $e')),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Salva'),
-          ),
-        ],
-      ),
-    );
-  }
-  
   // Resto dei metodi esistenti per la sidebar...
   Widget _buildPermanentReferences() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Riferimenti Permanenti',
           style: TextStyle(
             fontSize: 12,
@@ -723,7 +696,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
             if (hasRemove) ...[
               const SizedBox(width: 8),
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 child: Icon(
                   Icons.close,
