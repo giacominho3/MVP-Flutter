@@ -1,11 +1,11 @@
 // lib/presentation/screens/main_screen.dart
+import 'package:ai_assistant_mvp/presentation/screens/chat_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat/message_bubble.dart';
-import '../widgets/chat/chat_input.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
