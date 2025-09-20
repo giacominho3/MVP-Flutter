@@ -419,45 +419,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           width: 200,
                           height: 80,
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            // Fallback elegante se l'immagine non viene trovata
-                            return Container(
-                              width: 200,
-                              height: 80,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.purple.shade400,
-                                    Colors.purple.shade600,
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'VIRGO',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 2,
-                                    ),
-                                  ),
-                                  Text(
-                                    'AI ASSISTANT',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      letterSpacing: 1,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
                         ),
                         const SizedBox(height: 24),
                         Text(
