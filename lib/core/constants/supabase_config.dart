@@ -1,5 +1,4 @@
 // lib/core/constants/supabase_config.dart
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class SupabaseConfig {
@@ -17,8 +16,15 @@ class SupabaseConfig {
   static String get currentUrl => url;
   static String get currentAnonKey => anonKey;
   
-  // Verifica se siamo su desktop
-  static bool get isDesktop => !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+  // Verifica se siamo su desktop (web-safe!)
+  static bool get isDesktop {
+    if (kIsWeb) return false;
+    
+    // Usa defaultTargetPlatform invece di Platform
+    return defaultTargetPlatform == TargetPlatform.windows ||
+           defaultTargetPlatform == TargetPlatform.linux ||
+           defaultTargetPlatform == TargetPlatform.macOS;
+  }
   
   // Configurazione specifica per desktop
   static bool get shouldSkipCertificateVerification => isDesktop && kDebugMode;
