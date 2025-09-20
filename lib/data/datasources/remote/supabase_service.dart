@@ -1,139 +1,17 @@
-// lib/data/datasources/remote/supabase_service.dart - VERSIONE DEBUG MIGLIORATA
+// lib/data/datasources/remote/supabase_service.dart
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/constants/supabase_config.dart';
 import '../../../domain/entities/message.dart';
 import '../../../domain/entities/chat_session.dart';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
   
-  // Test di connessione migliorato
-  static Future<bool> testConnection() async {
-    try {
-      if (kDebugMode) {
-        print('🔍 Testing Supabase connection...');
-        print('📍 URL: ${SupabaseConfig.currentUrl}');
-        print('🔑 Anon Key: ${SupabaseConfig.currentAnonKey.substring(0, 20)}...');
-      }
-      
-      // Test più basilare - solo verifica che l'API risponda
-      try {
-        // Prova a fare una query di test su auth (sempre disponibile)
-        final response = await client.auth.getUser();
-        
-        if (kDebugMode) {
-          print('✅ Supabase auth endpoint responsive');
-          print('👤 Current user: ${response.user?.email ?? "none"}');
-        }
-        
-        return true;
-      } catch (authError) {
-        if (kDebugMode) {
-          print('⚠️ Auth test failed, trying basic REST call...');
-        }
-        
-        // Se auth fallisce, prova una chiamata REST base
-        await client.rest.from('non_existent_table').select().limit(1);
-        
-        // Se arriviamo qui senza eccezioni, la connessione funziona
-        // (anche se la tabella non esiste, il server ha risposto)
-        if (kDebugMode) {
-          print('✅ Supabase REST endpoint responsive');
-        }
-        return true;
-      }
-      
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Supabase connection test failed: $e');
-        print('🔍 Error type: ${e.runtimeType}');
-        
-        // Debug aggiuntivo per errori specifici
-        if (e.toString().contains('certificate') || e.toString().contains('SSL')) {
-          print('🔒 SSL/Certificate issue detected');
-        } else if (e.toString().contains('timeout')) {
-          print('⏱️ Timeout issue detected');
-        } else if (e.toString().contains('network') || e.toString().contains('connection')) {
-          print('🌐 Network connectivity issue detected');
-        }
-      }
-      return false;
-    }
-  }
+  static User? get currentUser => client.auth.currentUser;
+  static bool get isAuthenticated => currentUser != null;
   
-  // Test di connessione alternativo più dettagliato
-  static Future<Map<String, dynamic>> detailedConnectionTest() async {
-    final result = <String, dynamic>{
-      'success': false,
-      'url': SupabaseConfig.currentUrl,
-      'error': null,
-      'details': <String, dynamic>{},
-    };
-    
-    try {
-      if (kDebugMode) {
-        print('🔍 Detailed Supabase connection test...');
-      }
-      
-      // Test 1: Basic URL reachability
-      try {
-        final stopwatch = Stopwatch()..start();
-        await client.auth.getUser();
-        stopwatch.stop();
-        
-        result['details']['auth_test'] = {
-          'success': true,
-          'duration_ms': stopwatch.elapsedMilliseconds,
-        };
-        
-        if (kDebugMode) {
-          print('✅ Auth endpoint test passed (${stopwatch.elapsedMilliseconds}ms)');
-        }
-      } catch (e) {
-        result['details']['auth_test'] = {
-          'success': false,
-          'error': e.toString(),
-        };
-        
-        if (kDebugMode) {
-          print('❌ Auth endpoint test failed: $e');
-        }
-      }
-      
-      // Test 2: REST API test
-      try {
-        final stopwatch = Stopwatch()..start();
-        await client.rest.from('test').select().limit(1);
-        stopwatch.stop();
-        
-        result['details']['rest_test'] = {
-          'success': true,
-          'duration_ms': stopwatch.elapsedMilliseconds,
-        };
-      } catch (e) {
-        // È normale che questo fallisca se la tabella non esiste
-        result['details']['rest_test'] = {
-          'success': true, // Consideriamo successo se il server risponde
-          'note': 'Server responded (table may not exist)',
-          'error': e.toString(),
-        };
-      }
-      
-      result['success'] = true;
-      
-    } catch (e) {
-      result['error'] = e.toString();
-      
-      if (kDebugMode) {
-        print('❌ Detailed connection test failed: $e');
-      }
-    }
-    
-    return result;
-  }
+  // ============= AUTENTICAZIONE =============
   
-  // Authentication
   static Future<AuthResponse> signInWithEmail(String email, String password) async {
     try {
       if (kDebugMode) {
@@ -180,23 +58,28 @@ class SupabaseService {
     }
   }
   
-  static Future<void> signOut() {
-    return client.auth.signOut();
+  static Future<void> signOut() async {
+    await client.auth.signOut();
   }
   
-  static User? get currentUser => client.auth.currentUser;
-  static bool get isAuthenticated => currentUser != null;
+  // ============= CHAT SESSIONS =============
   
-  // Chat Sessions - versione semplificata per test
   static Future<List<ChatSession>> getChatSessions() async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      // Per ora ritorna una lista vuota - implementeremo le tabelle dopo
-      if (kDebugMode) {
-        print('📋 Getting chat sessions (mockup for now)');
-      }
-      return [];
+      final response = await client
+          .from('chat_sessions')
+          .select()
+          .eq('user_id', currentUser!.id)
+          .order('updated_at', ascending: false);
+      
+      return (response as List).map((json) => ChatSession(
+        id: json['id'],
+        title: json['title'] ?? 'Chat senza titolo',
+        createdAt: DateTime.parse(json['created_at']),
+        updatedAt: DateTime.parse(json['updated_at']),
+      )).toList();
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error getting chat sessions: $e');
@@ -209,11 +92,21 @@ class SupabaseService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      // Per ora crea una sessione locale - implementeremo il salvataggio dopo
-      if (kDebugMode) {
-        print('➕ Creating chat session: $title');
-      }
-      return ChatSession.create(title: title);
+      final response = await client
+          .from('chat_sessions')
+          .insert({
+            'user_id': currentUser!.id,
+            'title': title,
+          })
+          .select()
+          .single();
+      
+      return ChatSession(
+        id: response['id'],
+        title: response['title'],
+        createdAt: DateTime.parse(response['created_at']),
+        updatedAt: DateTime.parse(response['updated_at']),
+      );
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error creating chat session: $e');
@@ -226,10 +119,11 @@ class SupabaseService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      if (kDebugMode) {
-        print('🗑️ Deleting chat session: $sessionId');
-      }
-      // Implementeremo dopo
+      // Prima elimina i messaggi (cascata automatica se hai ON DELETE CASCADE)
+      await client.from('messages').delete().eq('session_id', sessionId);
+      
+      // Poi elimina la sessione
+      await client.from('chat_sessions').delete().eq('id', sessionId);
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error deleting chat session: $e');
@@ -238,16 +132,25 @@ class SupabaseService {
     }
   }
   
-  // Messages - versione semplificata
+  // ============= MESSAGES =============
+  
   static Future<List<Message>> getMessages(String sessionId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      if (kDebugMode) {
-        print('💬 Getting messages for session: $sessionId');
-      }
-      // Per ora ritorna lista vuota
-      return [];
+      final response = await client
+          .from('messages')
+          .select()
+          .eq('session_id', sessionId)
+          .order('created_at');
+      
+      return (response as List).map((json) => Message(
+        id: json['id'],
+        content: json['content'],
+        isUser: json['is_user'] == true, // NOTA: il tuo DB usa is_user non role
+        timestamp: DateTime.parse(json['created_at']),
+        sessionId: sessionId,
+      )).toList();
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error getting messages: $e');
@@ -256,7 +159,8 @@ class SupabaseService {
     }
   }
   
-  // Proxy per Claude API - versione di test
+  // ============= CLAUDE CHAT - USA LA TUA EDGE FUNCTION! =============
+  
   static Future<Map<String, dynamic>> sendToClaude({
     required String message,
     required List<Message> history,
@@ -266,16 +170,43 @@ class SupabaseService {
     
     try {
       if (kDebugMode) {
-        print('🤖 Sending message to Claude (via Supabase)...');
+        print('🤖 Sending message to Claude via edge function...');
+        print('📝 Message: $message');
+        print('🆔 Session: $sessionId');
       }
       
-      // Per ora simula una risposta - implementeremo la Edge Function dopo
-      await Future.delayed(const Duration(seconds: 1));
+      // Prepara la history nel formato corretto per la tua edge function
+      final formattedHistory = history.map((m) => {
+        'role': m.isUser ? 'user' : 'assistant',
+        'content': m.content,
+      }).toList();
       
+      // Chiama la TUA edge function claude-proxy
+      final response = await client.functions.invoke(
+        'claude-proxy', // Il nome della TUA edge function
+        body: {
+          'message': message,
+          'session_id': sessionId, // NOTA: underscore come nella tua edge function
+          'history': formattedHistory,
+        },
+      );
+      
+      if (kDebugMode) {
+        print('📥 Edge function response: ${response.data}');
+      }
+      
+      // Gestisci errori
+      if (response.error != null) {
+        throw Exception(response.error!);
+      }
+      
+      // La tua edge function ritorna: {content, tokens_used, cost_cents}
       return {
-        'content': 'Ciao! Questa è una risposta di test. Il sistema funziona correttamente!',
-        'usage': {'tokens': 50},
+        'content': response.data['content'] ?? '',
+        'tokens_used': response.data['tokens_used'] ?? 0,
+        'cost_cents': response.data['cost_cents'] ?? 0,
       };
+      
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error sending to Claude: $e');
@@ -284,15 +215,33 @@ class SupabaseService {
     }
   }
   
-  // Usage tracking - versione mockup
+  // ============= USAGE TRACKING =============
+  
   static Future<Map<String, int>> getUserUsage() async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
+      // Calcola uso nelle ultime 24 ore come fa la tua edge function
+      final oneDayAgo = DateTime.now().subtract(const Duration(days: 1)).toIso8601String();
+      
+      final response = await client
+          .from('usage_logs')
+          .select('tokens_used, cost_cents')
+          .eq('user_id', currentUser!.id)
+          .gte('created_at', oneDayAgo);
+      
+      int totalTokens = 0;
+      int totalCost = 0;
+      
+      for (final log in response as List) {
+        totalTokens += (log['tokens_used'] as int? ?? 0);
+        totalCost += (log['cost_cents'] as int? ?? 0);
+      }
+      
       return {
-        'messages': 5,
-        'tokens': 250,
-        'cost_cents': 10,
+        'messages': (response as List).length,
+        'tokens': totalTokens,
+        'cost_cents': totalCost,
       };
     } catch (e) {
       if (kDebugMode) {
@@ -306,22 +255,26 @@ class SupabaseService {
     }
   }
   
-  static Future<bool> canSendMessage() async {
+  // ============= TEST CONNECTION =============
+  
+  static Future<bool> testConnection() async {
     try {
-      final usage = await getUserUsage();
-      return (usage['messages'] ?? 0) < 100;
-    } catch (e) {
+      if (kDebugMode) {
+        print('🔍 Testing Supabase connection...');
+      }
+      
+      // Prova a fare una query semplice
+      await client.from('chat_sessions').select().limit(1);
+      
+      if (kDebugMode) {
+        print('✅ Supabase connection OK');
+      }
       return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Supabase connection failed: $e');
+      }
+      return false;
     }
   }
-}
-
-// Eccezione personalizzata per Supabase
-class SupabaseException implements Exception {
-  final String message;
-  
-  const SupabaseException(this.message);
-  
-  @override
-  String toString() => 'SupabaseException: $message';
 }

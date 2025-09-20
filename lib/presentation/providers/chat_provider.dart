@@ -1,4 +1,4 @@
-// lib/presentation/providers/chat_provider.dart - VERSIONE CORRETTA
+// lib/presentation/providers/chat_provider.dart - SOLO LA PARTE MODIFICATA
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,8 +86,7 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
         state = const AppAuthState.error('Login failed');
       }
     } catch (e) {
-      String errorMessage = _parseError(e);
-      state = AppAuthState.error(errorMessage);
+      state = AppAuthState.error(_parseError(e));
     }
   }
   
@@ -101,48 +100,24 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
         state = const AppAuthState.error('Registration failed');
       }
     } catch (e) {
-      String errorMessage = _parseError(e);
-      state = AppAuthState.error(errorMessage);
+      state = AppAuthState.error(_parseError(e));
     }
-  }
-
-  // NUOVO: Metodo per modalità test
-  void setTestMode() {
-    final fakeUser = User(
-      id: 'test-user-id',
-      appMetadata: {},
-      userMetadata: {'email': 'test@example.com'},
-      aud: 'authenticated',
-      createdAt: DateTime.now().toIso8601String(),
-      email: 'test@example.com',
-    );
-    
-    state = AppAuthState.authenticated(fakeUser);
   }
   
   String _parseError(dynamic error) {
     final errorStr = error.toString().toLowerCase();
     
-    if (errorStr.contains('connection failed') || errorStr.contains('network')) {
-      return 'Problema di connessione. Controlla la tua connessione internet.';
-    }
-    if (errorStr.contains('certificate') || errorStr.contains('ssl') || errorStr.contains('tls')) {
-      return 'Problema di sicurezza della connessione. Riprova.';
-    }
-    if (errorStr.contains('timeout')) {
-      return 'Timeout della connessione. Riprova.';
-    }
     if (errorStr.contains('invalid_credentials')) {
-      return 'Email o password non corretti.';
+      return 'Email o password non corretti';
     }
     if (errorStr.contains('email_not_confirmed')) {
-      return 'Conferma la tua email prima di accedere.';
+      return 'Conferma la tua email prima di accedere';
     }
-    if (errorStr.contains('too_many_requests')) {
-      return 'Troppi tentativi. Riprova tra qualche minuto.';
+    if (errorStr.contains('rate_limit')) {
+      return 'Troppi tentativi. Riprova tra qualche minuto';
     }
     
-    return 'Errore di connessione. Verifica la tua connessione internet e riprova.';
+    return 'Errore: ${error.toString()}';
   }
  
   Future<void> signOut() async {
@@ -171,7 +146,6 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
         title ?? 'Nuova Chat ${_formatDate(DateTime.now())}',
       );
       
-      // IMPORTANTE: Assicurati che state sia settato
       state = session;
       
       print('✅ Sessione creata: ${session.id}');
@@ -184,9 +158,9 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
     }
   }
 
-  /// Carica una sessione esistente con i suoi messaggi
   Future<void> loadSession(ChatSession session) async {
     try {
+      // Carica i messaggi della sessione
       final messages = await SupabaseService.getMessages(session.id);
       state = session.copyWith(messages: messages);
     } catch (e) {
@@ -200,31 +174,30 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
     try {
       messageNotifier.setSending();
       
-      // Crea sessione locale semplice se non esiste
+      // Crea sessione se non esiste
       if (state == null) {
-        state = ChatSession.create(title: 'Chat Locale');
-        print('✅ Sessione locale creata: ${state!.id}');
+        await createNewSession(title: content.substring(0, content.length > 50 ? 50 : content.length));
       }
       
-      // Crea messaggio utente
+      // Crea messaggio utente locale per visualizzazione immediata
       final userMessage = Message.user(
         content: content,
         sessionId: state!.id,
       );
       
-      // Aggiungi messaggio utente alla sessione
+      // Aggiungi messaggio utente alla visualizzazione locale
       state = state!.addMessage(userMessage);
       
-      // Aggiorna titolo se è il primo messaggio
-      if (state!.userMessageCount == 1) {
-        state = state!.updateTitleFromMessages();
-      }
+      // CHIAMA LA EDGE FUNCTION DI SUPABASE!
+      final response = await SupabaseService.sendToClaude(
+        message: content,
+        sessionId: state!.id,
+        history: state!.messages.where((m) => m != userMessage).toList(),
+      );
       
-      // SIMULAZIONE: Crea risposta fake invece di chiamare Supabase
-      await Future.delayed(const Duration(seconds: 1));
-      
+      // Crea messaggio assistente con la risposta
       final assistantMessage = Message.assistant(
-        content: 'Questa è una risposta di test! Il sistema funziona correttamente. Hai scritto: "$content"',
+        content: response['content'] ?? '',
         sessionId: state!.id,
       );
       
@@ -234,17 +207,21 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       messageNotifier.setIdle();
       
       print('✅ Messaggio inviato e risposta ricevuta');
+      print('💰 Tokens usati: ${response['tokens_used']}, Costo: ${response['cost_cents']} cents');
+      
+      // Aggiorna la lista delle sessioni e l'usage
+      _ref.invalidate(chatSessionsProvider);
+      _ref.invalidate(userUsageProvider);
       
     } catch (e) {
       print('❌ Errore nell\'invio: $e');
       if (state != null && state!.messages.isNotEmpty) {
         state = state!.markLastMessageError();
       }
-      messageNotifier.setError('Errore nell\'invio: $e');
+      messageNotifier.setError('Errore: $e');
     }
   }
 
-  /// Elimina la sessione corrente
   Future<void> deleteCurrentSession() async {
     if (state == null) return;
     
@@ -259,7 +236,6 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
     }
   }
   
-  /// Rimuove la sessione corrente (solo locale)
   void clearSession() {
     state = null;
   }
@@ -277,7 +253,7 @@ class MessageStateNotifier extends StateNotifier<AppMessageState> {
   void setError(String message) => state = AppMessageState.error(message);
 }
 
-// Modelli per lo stato di autenticazione (rinominati per evitare conflitti)
+// Stati per l'autenticazione
 sealed class AppAuthState {
   const AppAuthState();
   
@@ -305,7 +281,7 @@ class AppAuthStateError extends AppAuthState {
   const AppAuthStateError(this.message);
 }
 
-// Modelli per lo stato dei messaggi (rinominati per coerenza)
+// Stati per i messaggi
 sealed class AppMessageState {
   const AppMessageState();
   
