@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
 import '../../domain/entities/message.dart';
-import '../../domain/entities/chat_session.dart';
 import '../providers/chat_provider.dart';
-import '../widgets/chat/message_bubble.dart';
-import '../widgets/chat/chat_input.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});

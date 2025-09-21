@@ -131,9 +131,8 @@ class MessageBubble extends StatelessWidget {
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                message.isUser ? Colors.white : AppColors.primary,
-              ),
+              // CORREZIONE: Usa MaterialStateProperty invece di AlwaysStoppedAnimation
+              color: message.isUser ? Colors.white : AppColors.primary,
             ),
           ),
           const SizedBox(width: 8),
@@ -149,7 +148,7 @@ class MessageBubble extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildRetryButton() {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
