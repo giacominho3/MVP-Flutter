@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   // Primary colors dal design
   static const Color primary = Color(0xFF000000); // Nero per il logo
-  static const Color secondary = Color(0xFF6B7280); // Grigio per testi secondari
+  static const Color secondary = Color.fromARGB(255, 62, 62, 62); // Grigio per testi secondari
   static const Color success = Color(0xFF10B981); // Verde per i badge G DRIVE
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFDC2626);
@@ -17,8 +17,8 @@ class AppColors {
 
   // Text colors
   static const Color textPrimary = Color(0xFF000000); // Nero per testi principali
-  static const Color textSecondary = Color(0xFF6B7280); // Grigio per testi secondari
-  static const Color textTertiary = Color(0xFF9CA3AF); // Grigio chiaro
+  static const Color textSecondary = Color.fromARGB(255, 43, 43, 44); // Grigio per testi secondari
+  static const Color textTertiary = Color.fromARGB(255, 67, 67, 68); // Grigio chiaro
 
   // Chat specific colors dal design
   static const Color chatBubbleBg = Color(0xFFF3F4F6); // Grigio chiaro per le chat bubble
@@ -63,8 +63,8 @@ class AppColors {
   static const Color hoverMedium = Color(0xFFF3F4F6);
 
   // Icon colors
-  static const Color iconPrimary = Color(0xFF374151);
-  static const Color iconSecondary = Color(0xFF6B7280);
+  static const Color iconPrimary = Color.fromARGB(255, 50, 51, 51);
+  static const Color iconSecondary = Color.fromARGB(255, 82, 82, 83);
   static const Color iconSuccess = Color(0xFF10B981);
   static const Color iconError = Color(0xFFDC2626);
 

@@ -71,9 +71,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
+                    style: const TextStyle(
+                      color: Color.fromARGB(255, 80, 80, 80),
+                      fontSize: 14,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: Color.fromARGB(255, 80, 80, 80),
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -88,17 +95,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   
                   const SizedBox(height: 16),
                   
-                  // Password Field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _handleSubmit(),
+                    style: const TextStyle(
+                      color: Color.fromARGB(255, 80, 80, 80), // <-- COLORE DEL TESTO CHE DIGITI
+                      fontSize: 14,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outlined),
+                      prefixIcon: const Icon(
+                        Icons.lock_outlined,
+                        color: Color.fromARGB(255, 80, 80, 80), // Colore icona
+                      ),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          color: const Color.fromARGB(255, 80, 80, 80), // Colore icona
+                        ),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
@@ -121,6 +137,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
                       backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.surface
                     ),
                     child: authState is AppAuthStateLoading
                         ? const SizedBox(
@@ -157,7 +174,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextSpan(
                             text: _isSignUp ? 'Accedi' : 'Registrati',
                             style: const TextStyle(
-                              color: AppColors.primary,
+                              color: Color.fromARGB(255, 0, 0, 0),
                               fontWeight: FontWeight.w600,
                             ),
                           ),

@@ -461,6 +461,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         fontSize: 14,
                       ),
                     ),
+                    style: const TextStyle(
+                      color: Color.fromARGB(255, 80, 80, 80),
+                      fontSize: 14,
+                    ),
                     onSubmitted: (text) {
                       if (text.trim().isNotEmpty && messageState is! AppMessageStateSending) {
                         ref.read(currentChatSessionProvider.notifier).sendMessage(text);

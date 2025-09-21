@@ -39,7 +39,7 @@ class AppTextStyles {
   static const TextStyle bodySmall = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    color: AppColors.textSecondary, // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 76, 77, 78), // Cambiato per evitare Color.fromARGB
     height: 1.3,
   );
   
@@ -47,14 +47,14 @@ class AppTextStyles {
   static const TextStyle caption = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary, // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 72, 73, 74), // Cambiato per evitare Color.fromARGB
     letterSpacing: 0.5,
   );
   
   static const TextStyle captionSmall = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary, // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 78, 78, 80), // Cambiato per evitare Color.fromARGB
     letterSpacing: 0.3,
   );
   
@@ -104,14 +104,14 @@ class AppTextStyles {
   static const TextStyle inputHint = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
-    color: AppColors.textTertiary, // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 83, 84, 85), // Cambiato per evitare Color.fromARGB
   );
 
   // Section header styles
   static const TextStyle sectionHeader = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary, // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 57, 58, 60), // Cambiato per evitare Color.fromARGB
     letterSpacing: 0.5,
   );
 }
@@ -123,14 +123,12 @@ class AppTheme {
     
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
-      secondary: AppColors.secondary,
+      secondary: Color.fromARGB(255, 62, 63, 66),
       surface: AppColors.surface,
-      background: AppColors.background,
       error: AppColors.error,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: AppColors.textPrimary,
-      onBackground: AppColors.textPrimary,
       onError: Colors.white,
       outline: AppColors.outline,
     ),
@@ -191,11 +189,11 @@ class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(24),
-        borderSide: const BorderSide(color: AppColors.inputBorder),
+        borderSide: const BorderSide(color: Color.fromARGB(255, 80, 80, 80)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(24),
-        borderSide: const BorderSide(color: AppColors.inputBorder),
+        borderSide: const BorderSide(color: Color.fromARGB(255, 80, 80, 80)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(24),
@@ -208,6 +206,11 @@ class AppTheme {
       filled: true,
       fillColor: AppColors.inputBackground,
       hintStyle: AppTextStyles.inputHint,
+      labelStyle: const TextStyle(
+        color: Color.fromARGB(255, 80, 80, 80), // Stesso grigio scuro dei bordi
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     ),
     
@@ -251,13 +254,13 @@ class AppTheme {
     expansionTileTheme: const ExpansionTileThemeData(
       tilePadding: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       childrenPadding: EdgeInsets.zero,
-      iconColor: AppColors.iconSecondary,
+      iconColor: Color.fromARGB(255, 64, 66, 69),
       textColor: AppColors.textPrimary,
     ),
     
     // Scroll bar theme
     scrollbarTheme: ScrollbarThemeData(
-      thumbColor: WidgetStateProperty.all(AppColors.textTertiary.withOpacity(0.3)),
+      thumbColor: WidgetStateProperty.all(const Color.fromARGB(255, 64, 65, 67).withOpacity(0.3)),
       trackColor: WidgetStateProperty.all(Colors.transparent),
       radius: const Radius.circular(4),
       thickness: WidgetStateProperty.all(4),
@@ -269,8 +272,8 @@ class AppTheme {
     useMaterial3: true,
     colorScheme: const ColorScheme.dark(
       primary: AppColors.primary,
-      secondary: AppColors.secondary,
-      surface: AppColors.darkSurface,
+      secondary: Color.fromARGB(255, 103, 105, 110),
+      surface: Color.fromARGB(255, 54, 54, 54),
       error: AppColors.error,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
