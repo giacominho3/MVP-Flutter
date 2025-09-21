@@ -21,7 +21,14 @@ dependencies:
   
   # Network & APIs
   dio: ^5.4.0
-  http: ^1.1.0  # Necessario per SSL override
+  http: ^1.1.0
+  
+  # ===== GOOGLE APIS - NUOVO =====
+  google_sign_in: ^6.2.1
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+  # ================================
   
   # Local Storage
   shared_preferences: ^2.2.2
@@ -39,6 +46,7 @@ dependencies:
   uuid: ^4.2.1
   intl: ^0.19.0
   mime: ^1.0.6
+  flutter_svg: ^2.2.1
 
 dev_dependencies:
   flutter_test:
@@ -51,3 +59,4 @@ flutter:
   assets:
     - assets/images/logo_virgo.png
     - assets/images/logo_virgo_extended.png
+    - assets/icons/google_logo.svg
