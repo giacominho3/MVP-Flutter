@@ -136,11 +136,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           Container(
             width: 320,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
-              border: Border(
-                right: BorderSide(color: AppColors.sidebarBorder, width: 1),
-              ),
-            ),
             child: Row(
               children: [
                 // Logo allineato a sinistra
@@ -214,11 +209,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           Container(
             width: 320,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
-              border: Border(
-                left: BorderSide(color: AppColors.previewBorder, width: 1),
-              ),
-            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -1026,7 +1016,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: message.isUser 
-            ? AppColors.chatBubbleBg 
+            ? const Color(0xFFE8E9EB)  // Grigio leggermente più scuro per i messaggi utente
             : AppColors.assistantMessageBg,
         borderRadius: BorderRadius.circular(12),
       ),
@@ -1035,14 +1025,44 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                message.isUser ? Icons.person : Icons.smart_toy,
-                size: 16,
-                color: AppColors.textSecondary,
-              ),
+              // Usa il logo Virgo per l'assistente, icona persona per l'utente
+              if (message.isUser)
+                Icon(
+                  Icons.person,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                )
+              else
+                Image.asset(
+                  'assets/images/logo_virgo.png',
+                  width: 16,
+                  height: 16,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback se l'immagine non carica
+                    return Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'V',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               const SizedBox(width: 8),
               Text(
-                message.isUser ? 'Tu' : 'Assistant',
+                message.isUser ? 'Tu' : 'Virgo',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
