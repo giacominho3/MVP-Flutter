@@ -1,5 +1,5 @@
 [build.environment]
-  FLUTTER_VERSION = "3.19.0"
+  FLUTTER_VERSION = "3.35.4"
 
 [build]
   command = "./build.sh"
