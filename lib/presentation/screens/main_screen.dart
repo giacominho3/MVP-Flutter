@@ -87,116 +87,155 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
-      body: Row(
+      body: Column(
         children: [
-          // Sidebar sinistra
-          _buildLeftSidebar(),
+          // Custom Header invece di AppBar
+          _buildCustomHeader(),
           
-          // Area chat centrale
+          // Contenuto principale
           Expanded(
-            child: _buildChatArea(chatSession, messageState),
+            child: Row(
+              children: [
+                // Sidebar sinistra
+                _buildLeftSidebar(),
+                
+                // Area chat centrale
+                Expanded(
+                  child: _buildChatArea(chatSession, messageState),
+                ),
+                
+                // Smart Preview Window a destra
+                _buildSmartPreviewWindow(),
+              ],
+            ),
           ),
-          
-          // Smart Preview Window a destra
-          _buildSmartPreviewWindow(),
         ],
       ),
     );
   }
   
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      toolbarHeight: 48,
-      leadingWidth: 56,
-      leading: Center(
-        child: Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: Image.asset(
-            'assets/images/logo_virgo.png',
-            width: 28,
-            height: 28,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+  Widget _buildCustomHeader() {
+    return Container(
+      height: 48,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: AppColors.divider, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Sezione logo con larghezza fissa (stessa della sidebar)
+          Container(
+            width: 320,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: const BoxDecoration(
+              border: Border(
+                right: BorderSide(color: AppColors.sidebarBorder, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Logo allineato a sinistra
+                Image.asset(
+                  'assets/images/logo_virgo.png',
+                  width: 28,
+                  height: 28,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'V',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                child: const Center(
-                  child: Text(
-                    'V',
+                
+                // Spacer per spingere versione e beta a destra
+                const Spacer(),
+                
+                // Versione e Beta allineati a destra
+                const Text(
+                  'v.0.0.1',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textTertiary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                
+                // Badge Beta con font size 12
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 255, 229, 232),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'beta',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 223, 4, 95),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-      ),
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'v.0.0.1',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textTertiary,
-              fontWeight: FontWeight.w400,
+              ],
             ),
           ),
-          const SizedBox(width: 12),
+          
+          // Sezione centrale (vuota per ora, puoi aggiungere titolo chat o altro)
+          const Expanded(
+            child: SizedBox(),
+          ),
+          
+          // Sezione destra con menu
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 255, 229, 232),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              'beta',
-              style: TextStyle(
-                color: Color.fromARGB(255, 223, 4, 95),
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
+            width: 320,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: const BoxDecoration(
+              border: Border(
+                left: BorderSide(color: AppColors.previewBorder, width: 1),
               ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                PopupMenuButton(
+                  icon: const Icon(Icons.more_vert, size: 20, color: AppColors.iconPrimary),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      onTap: () {
+                        ref.read(authStateProvider.notifier).signOut();
+                      },
+                      child: const Row(
+                        children: [
+                          Icon(Icons.logout, size: 16),
+                          SizedBox(width: 8),
+                          Text('Logout'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
-      ),
-      actions: [
-        PopupMenuButton(
-          icon: const Icon(Icons.more_vert, size: 20, color: AppColors.iconPrimary),
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              onTap: () {
-                ref.read(authStateProvider.notifier).signOut();
-              },
-              child: const Row(
-                children: [
-                  Icon(Icons.logout, size: 16),
-                  SizedBox(width: 8),
-                  Text('Logout'),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: 16),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(
-          color: AppColors.divider,
-          height: 1,
-        ),
       ),
     );
   }
@@ -273,70 +312,90 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   const Divider(height: 1, color: AppColors.divider),
                   const SizedBox(height: 8),
                   
-                  // I tuoi pin personali - ora mostra le chat salvate
-                  _buildExpandableSection(
-                    icon: Icons.person_outline,
-                    title: 'Le tue conversazioni',
-                    isExpanded: _isPersonalPinsExpanded,
-                    onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
-                    children: chatSessionsAsync.when(
-                      data: (sessions) {
-                        if (sessions.isEmpty) {
-                          return [
-                            const Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: Text(
-                                'Nessuna conversazione salvata',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textTertiary,
-                                  fontStyle: FontStyle.italic,
+                  // Container con bordo per "Le tue conversazioni"
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAFBFC), // Grigio molto chiaro, appena percettibile
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.outline,
+                        width: 1,
+                      ),
+                    ),
+                    child: _buildExpandableSection(
+                      icon: Icons.person_outline,
+                      title: 'Le tue conversazioni',
+                      isExpanded: _isPersonalPinsExpanded,
+                      onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
+                      children: chatSessionsAsync.when(
+                        data: (sessions) {
+                          if (sessions.isEmpty) {
+                            return [
+                              const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Nessuna conversazione salvata',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textTertiary,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ];
-                        }
-                        return sessions.map((session) => _buildChatItem(
-                          session: session,
-                          isActive: currentSession?.id == session.id,
-                        )).toList();
-                      },
-                      loading: () => [
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        ),
-                      ],
-                      error: (error, _) => [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            'Errore nel caricamento',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.error,
+                            ];
+                          }
+                          return sessions.map((session) => _buildChatItem(
+                            session: session,
+                            isActive: currentSession?.id == session.id,
+                          )).toList();
+                        },
+                        loading: () => [
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                        error: (error, _) => [
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              'Errore nel caricamento',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   
-                  const SizedBox(height: 8),
-                  
-                  // Pin della tua organizzazione
-                  _buildExpandableSection(
-                    icon: Icons.business_outlined,
-                    title: 'Pin della tua organizzazione',
-                    isExpanded: _isOrgPinsExpanded,
-                    onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
-                    children: [],
+                  // Container con bordo per "Pin della tua organizzazione"
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAFBFC), // Grigio molto chiaro
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.outline,
+                        width: 1,
+                      ),
+                    ),
+                    child: _buildExpandableSection(
+                      icon: Icons.business_outlined,
+                      title: 'Pin della tua organizzazione',
+                      isExpanded: _isOrgPinsExpanded,
+                      onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
+                      children: [],
+                    ),
                   ),
                   
                   const Spacer(),
@@ -700,9 +759,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       children: [
         InkWell(
           onTap: onToggle,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             child: Row(
               children: [
                 Icon(icon, size: 18, color: AppColors.iconPrimary),
@@ -712,7 +771,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     title,
                     style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w400,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -728,7 +787,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ),
         if (isExpanded && children.isNotEmpty) 
           Padding(
-            padding: const EdgeInsets.only(left: 26),
+            padding: const EdgeInsets.only(left: 26, right: 12, bottom: 10),
             child: Column(children: children),
           ),
       ],
@@ -752,15 +811,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         },
         borderRadius: BorderRadius.circular(4),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
           child: Row(
             children: [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 14,
-                color: isActive ? AppColors.primary : AppColors.iconSecondary,
-              ),
-              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
