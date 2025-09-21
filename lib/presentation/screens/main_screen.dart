@@ -14,6 +14,8 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   bool _isPersonalPinsExpanded = true;
   bool _isOrgPinsExpanded = true;
   bool _isUtilitiesExpanded = false;
@@ -27,6 +29,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
+    
+    // Listener per aggiornare il pulsante send quando cambia il testo
+    _messageController.addListener(() {
+      setState(() {});
+    });
+  }
+  
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _messageFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
   
   void _scrollToBottom() {
@@ -36,6 +51,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    }
+  }
+  
+  void _sendMessage() {
+    final text = _messageController.text.trim();
+    if (text.isNotEmpty) {
+      final messageState = ref.read(messageStateProvider);
+      if (messageState is! AppMessageStateSending) {
+        ref.read(currentChatSessionProvider.notifier).sendMessage(text);
+        _messageController.clear();
+        _messageFocusNode.requestFocus();
+      }
     }
   }
   
@@ -416,6 +443,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           width: 200,
                           height: 80,
                           fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Text(
+                              'VIRGO',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -451,6 +488,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               children: [
                 Expanded(
                   child: TextField(
+                    controller: _messageController,
+                    focusNode: _messageFocusNode,
                     enabled: messageState is! AppMessageStateSending,
                     maxLines: null,
                     decoration: const InputDecoration(
@@ -466,9 +505,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       fontSize: 14,
                     ),
                     onSubmitted: (text) {
-                      if (text.trim().isNotEmpty && messageState is! AppMessageStateSending) {
-                        ref.read(currentChatSessionProvider.notifier).sendMessage(text);
-                      }
+                      _sendMessage();
                     },
                   ),
                 ),
@@ -480,10 +517,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
-                  Icon(
-                    Icons.mic_none,
-                    color: AppColors.iconSecondary,
-                    size: 20,
+                  IconButton(
+                    onPressed: _messageController.text.trim().isNotEmpty ? _sendMessage : null,
+                    icon: Icon(
+                      Icons.send,
+                      color: _messageController.text.trim().isNotEmpty 
+                          ? AppColors.primary 
+                          : AppColors.iconSecondary,
+                      size: 20,
+                    ),
                   ),
               ],
             ),
@@ -705,6 +747,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           // Genera riassunto
         } else if (title == 'Termina sessione') {
           // Termina sessione
+          ref.read(currentChatSessionProvider.notifier).clearSession();
         }
       },
       child: Container(
@@ -729,11 +772,5 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ),
       ),
     );
-  }
-  
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 }
