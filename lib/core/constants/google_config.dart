@@ -7,7 +7,6 @@ class GoogleConfig {
   
   // Per Desktop (Windows, macOS, Linux)
   static const String desktopClientId = '1015899649183-ocukl2gesl8bb7502v3nsub4frko8btc.apps.googleusercontent.com';
-  static const String desktopClientSecret = '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';
   
   // Per Web (se decidi di supportarlo in futuro)
   static const String webClientId = '1015899649183-6qsdcijpdpskf2sn65ujfmhdt1j1eko1.apps.googleusercontent.com';

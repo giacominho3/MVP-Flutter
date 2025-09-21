@@ -1,9 +1,14 @@
 {
 	"version": "0.2.0",
-	"configurations": [{
-		   "name": "Flutter",
-		   "request": "launch",
-		   "type": "dart",
-		   "args": ["-d", "chrome","--web-port", "58409"],
-	   }
-   ]}
+	"configurations": [
+	  {
+		"name": "Flutter Web Fixed Port",
+		"request": "launch",
+		"type": "dart",
+		"args": [
+		  "--web-port=58409",
+		  "--web-hostname=localhost"
+		]
+	  }
+	]
+  }
