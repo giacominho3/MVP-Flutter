@@ -2,8 +2,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:excel/excel.dart' as excel_lib; // Import della libreria Excel
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as value show toInt;
 import 'google_drive_service.dart';
 
 /// Classe per estrarre il contenuto testuale dai file di Google Drive
@@ -532,10 +530,6 @@ Link: ${file.webViewLink ?? 'N/A'}
     
     return buffer.toString();
   }
-}
-
-extension on excel_lib.CellValue? {
-  truncateToDouble() {}
 }
 
 extension on excel_lib.Sheet {

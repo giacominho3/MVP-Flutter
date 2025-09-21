@@ -156,9 +156,7 @@ class GoogleDriveService {
   // Drive API instance
   drive.DriveApi? _driveApi;
   final GoogleAuthService _authService = GoogleAuthService();
-  GoogleSignIn? _googleSignIn;
   GoogleSignInAccount? _currentAccount;
-  bool _isInitialized = false;
   
   GoogleSignInAccount? get currentAccount => _currentAccount;
   bool get isSignedIn => _currentAccount != null;

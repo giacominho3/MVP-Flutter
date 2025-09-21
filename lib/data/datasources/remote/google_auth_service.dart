@@ -361,14 +361,6 @@ class _GoogleAuthClient extends http.BaseClient implements auth.AuthClient {
   }
   
   @override
-  Future<void> refreshCredentials() async {
-    // Su Web, il refresh viene gestito automaticamente da Google Sign-In
-    if (kDebugMode) {
-      print('🔄 Refresh credentials richiesto');
-    }
-  }
-  
-  @override
   get credentials => auth.AccessCredentials(
     auth.AccessToken(
       'Bearer',
