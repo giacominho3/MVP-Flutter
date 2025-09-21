@@ -7,6 +7,9 @@ import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
 import '../providers/google_auth_provider.dart';
+import '../../data/datasources/remote/google_drive_service.dart';
+import '../providers/google_drive_provider.dart';
+import '../widgets/google_drive_dialog.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -23,6 +26,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isPersonalPinsExpanded = true;
   bool _isOrgPinsExpanded = true;
   bool _isUtilitiesExpanded = false;
+
+  DriveFile? _selectedFileForPreview;
   
   // Per la smart preview window
   List<String> selectedEmails = [];
@@ -274,25 +279,42 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   const SizedBox(height: 12),
                   const Divider(height: 1, color: AppColors.divider),
                   const SizedBox(height: 12),
-                  if (currentSession != null)
-                    _buildReferenceItem(
-                      title: currentSession.title,
-                      badge: 'ATTIVA',
-                      badgeColor: AppColors.success,
-                    )
-                  else
-                    const Text(
-                      'Nessuna sessione attiva',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textTertiary,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
+                  
+                  // Mostra file selezionati da Google Drive
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final selectedFiles = ref.watch(selectedDriveFilesProvider);
+                      
+                      if (selectedFiles.isEmpty && currentSession == null) {
+                        return const Text(
+                          'Nessun riferimento attivo',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textTertiary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        );
+                      }
+                      
+                      return Column(
+                        children: [
+                          // File da Google Drive
+                          ...selectedFiles.map((file) => _buildDriveFileReference(file)),
+                          
+                          // Sessione attiva
+                          if (currentSession != null)
+                            _buildReferenceItem(
+                              title: currentSession.title,
+                              badge: 'ATTIVA',
+                              badgeColor: AppColors.success,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
-            
             // Riferimenti Permanenti
             Expanded(
               child: Container(
@@ -427,107 +449,457 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
-  Widget _buildSmartPreviewWindow() {
-    return Container(
-      width: 320,
-      decoration: const BoxDecoration(
-        color: AppColors.previewBackground,
-        border: Border(
-          left: BorderSide(color: AppColors.previewBorder, width: 1),
+    Widget _buildSmartPreviewWindow() {
+      return Container(
+        width: 320,
+        decoration: const BoxDecoration(
+          color: AppColors.previewBackground,
+          border: Border(
+            left: BorderSide(color: AppColors.previewBorder, width: 1),
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(color: AppColors.divider, width: 1),
-              ),
-            ),
-            child: const Center(
-              child: Text(
-                'Smart preview window',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(color: AppColors.divider, width: 1),
                 ),
               ),
-            ),
-          ),
-          
-          // Content area
-          Expanded(
-            child: selectedEmails.isNotEmpty
-                ? ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      const Text(
-                        'Clicca per selezionare la mail corretta',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ...selectedEmails.map((email) => _buildEmailPreview(email)),
-                    ],
-                  )
-                : const Center(
-                    child: Text(
-                      'Nessun contenuto da visualizzare',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildEmailPreview(String subject) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () {
-          // Azione quando si clicca sull'email
-        },
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.outline),
-          ),
-          child: Row(
-            children: [
-              Expanded(
+              child: const Center(
                 child: Text(
-                  subject,
-                  style: const TextStyle(
-                    fontSize: 13,
+                  'Smart preview window',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
                   ),
                 ),
               ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 12,
-                color: AppColors.iconSecondary,
+            ),
+            
+            // Content area
+            Expanded(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final selectedFiles = ref.watch(selectedDriveFilesProvider);
+                  
+                  if (_selectedFileForPreview != null) {
+                    // Mostra anteprima del file selezionato
+                    return _buildFilePreview(_selectedFileForPreview!);
+                  } else if (selectedFiles.isNotEmpty) {
+                    // Mostra lista dei file disponibili per preview
+                    return _buildFileList(selectedFiles);
+                  } else {
+                    // Nessun contenuto
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.preview_outlined,
+                            size: 48,
+                            color: AppColors.iconSecondary,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Nessun file da visualizzare',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Seleziona file da Google Drive',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                },
               ),
-            ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Aggiungi questi metodi helper:
+
+    Widget _buildFileList(List<DriveFile> files) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'File disponibili per anteprima',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...files.map((file) => _buildFilePreviewCard(file)),
+        ],
+      );
+    }
+
+    Widget _buildFilePreviewCard(DriveFile file) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          elevation: 1,
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _selectedFileForPreview = file;
+              });
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // Icona file
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Center(
+                      child: Text(
+                        file.fileTypeIcon,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Info file
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          file.name,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          file.fileTypeDescription,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 12,
+                    color: AppColors.iconSecondary,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-    );
-  }
-  
+      );
+    }
+
+    Widget _buildFilePreview(DriveFile file) {
+      return Column(
+        children: [
+          // Header con info file
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _selectedFileForPreview = null;
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            file.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${file.fileTypeDescription} ${file.size != null ? "• ${file.size}" : ""}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (file.webViewLink != null)
+                      IconButton(
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        onPressed: () {
+                          // Apri in browser (necessita url_launcher package)
+                          // launch(file.webViewLink!);
+                        },
+                        tooltip: 'Apri in Google Drive',
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Contenuto preview
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: _buildPreviewContent(file),
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget _buildPreviewContent(DriveFile file) {
+      // Determina il tipo di preview in base al tipo di file
+      if (file.mimeType?.startsWith('application/vnd.google-apps.spreadsheet') ?? false) {
+        return _buildSpreadsheetPreview(file);
+      } else if (file.mimeType?.startsWith('application/vnd.google-apps.document') ?? false) {
+        return _buildDocumentPreview(file);
+      } else if (file.mimeType?.startsWith('image/') ?? false) {
+        return _buildImagePreview(file);
+      } else {
+        return _buildGenericPreview(file);
+      }
+    }
+
+    Widget _buildSpreadsheetPreview(DriveFile file) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.table_chart, color: Colors.green, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Foglio di calcolo Google',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Anteprima non disponibile',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ID: ${file.id}',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textTertiary,
+              fontFamily: 'monospace',
+            ),
+          ),
+          if (file.modifiedTime != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Ultima modifica: ${_formatDateTime(file.modifiedTime!)}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    Widget _buildDocumentPreview(DriveFile file) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.description, color: Colors.blue, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Documento Google',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Anteprima non disponibile',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ID: ${file.id}',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textTertiary,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget _buildImagePreview(DriveFile file) {
+      // Per immagini potresti mostrare una miniatura
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.image, color: Colors.purple, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Immagine',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.purple,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Potresti mostrare l'immagine qui usando file.webContentLink
+          const Center(
+            child: Icon(
+              Icons.image_outlined,
+              size: 100,
+              color: AppColors.iconSecondary,
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget _buildGenericPreview(DriveFile file) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Text(file.fileTypeIcon, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Text(
+                  file.fileTypeDescription,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Tipo MIME: ${file.mimeType ?? "sconosciuto"}',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+              fontFamily: 'monospace',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ID: ${file.id}',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textTertiary,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      );
+    }
+
+    String _formatDateTime(DateTime date) {
+      return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    }
+
   Widget _buildChatArea(chatSession, messageState) {
     return Column(
       children: [
@@ -1180,13 +1552,98 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  void _showGoogleDriveSearch() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Ricerca Google Drive in arrivo nella prossima fase!'),
-        backgroundColor: AppColors.primary,
+  void _showGoogleDriveSearch() async {
+    final selectedFiles = await GoogleDriveDialog.show(context);
+    
+    if (selectedFiles != null && selectedFiles.isNotEmpty) {
+      // I file sono stati selezionati e aggiunti al provider
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${selectedFiles.length} file aggiunti ai riferimenti'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildDriveFileReference(DriveFile file) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.outline),
+      ),
+      child: Row(
+        children: [
+          // Icona file
+          Text(
+            file.fileTypeIcon,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(width: 8),
+          
+          // Nome file
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  file.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  file.fileTypeDescription,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Badge Google Drive
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.badgeGoogleDrive,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: const Text(
+              'G DRIVE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 4),
+          
+          // Pulsante rimuovi
+          InkWell(
+            onTap: () {
+              ref.read(selectedDriveFilesProvider.notifier).removeFile(file.id);
+            },
+            child: const Icon(
+              Icons.close,
+              size: 14,
+              color: AppColors.iconSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
-
 }

@@ -1,12 +1,15 @@
 // lib/presentation/providers/chat_provider.dart
 import 'dart:async';
 
+import 'package:ai_assistant_mvp/data/datasources/remote/google_drive_content_extractor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/datasources/remote/supabase_service.dart';
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
+
+import 'google_drive_provider.dart';
 
 // Provider per lo stato di autenticazione
 final authStateProvider = StateNotifierProvider<AuthStateNotifier, AppAuthState>((ref) {
@@ -169,96 +172,137 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   }
 
   Future<void> sendMessage(String content) async {
-      final messageNotifier = _ref.read(messageStateProvider.notifier);
+    final messageNotifier = _ref.read(messageStateProvider.notifier);
+    
+    try {
+      messageNotifier.setSending();
       
-      try {
-        messageNotifier.setSending();
-        
-        // Crea sessione se non esiste
-        if (state == null) {
-          await createNewSession(title: content.substring(0, content.length > 50 ? 50 : content.length));
-        }
-        
-        // Salva prima il messaggio utente nel DB
-        final savedUserMessage = await SupabaseService.saveMessage(
-          content: content,
-          isUser: true,
-          sessionId: state!.id,
-        );
-        
-        // Aggiungi il messaggio utente salvato alla UI
-        state = state!.addMessage(savedUserMessage);
-        
-        // Crea messaggio assistente temporaneo con status "sending"
-        final tempAssistantMessage = Message(
-          id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-          content: '',
-          isUser: false,
-          timestamp: DateTime.now(),
-          status: MessageStatus.sending,
-          sessionId: state!.id,
-        );
-        
-        // Aggiungi messaggio assistente temporaneo
-        state = state!.addMessage(tempAssistantMessage);
-        
-        // Storia da inviare a Claude (escludi il messaggio temporaneo)
-        final historyForClaude = state!.messages
-            .where((m) => m.id != tempAssistantMessage.id && m != savedUserMessage)
-            .toList();
-        
-        // CHIAMA LA EDGE FUNCTION DI SUPABASE!
-        final response = await SupabaseService.sendToClaude(
-          message: content,
-          sessionId: state!.id,
-          history: historyForClaude,
-        );
-        
-        // Il messaggio dell'assistente è già stato salvato nel DB da sendToClaude
-        // Ora dobbiamo solo aggiornare la UI
-        
-        // Rimuovi il messaggio temporaneo
-        final messagesWithoutTemp = state!.messages
-            .where((m) => m.id != tempAssistantMessage.id)
-            .toList();
-        
-        // Crea il messaggio assistente finale
-        final assistantMessage = Message.assistant(
-          content: response['content'] ?? '',
-          sessionId: state!.id,
-        );
-        
-        // Aggiungi il messaggio dell'assistente alla lista
-        state = state!.copyWith(
-          messages: [...messagesWithoutTemp, assistantMessage],
-        );
-        
-        messageNotifier.setIdle();
-        
-        print('✅ Messaggio inviato e risposta ricevuta');
-        print('💰 Tokens usati: ${response['tokens_used']}, Costo: ${response['cost_cents']} cents');
-        print('📨 Totale messaggi nella chat: ${state!.messages.length}');
-        
-        // Aggiorna la lista delle sessioni e l'usage
-        _ref.invalidate(chatSessionsProvider);
-        _ref.invalidate(userUsageProvider);
-        
-      } catch (e) {
-        print('❌ Errore nell\'invio: $e');
-        
-        // Rimuovi il messaggio temporaneo in caso di errore
-        if (state != null && state!.messages.isNotEmpty) {
-          final lastMessage = state!.messages.last;
-          if (lastMessage.status == MessageStatus.sending && !lastMessage.isUser) {
-            // Rimuovi il messaggio "typing" temporaneo
-            final messagesWithoutTemp = state!.messages.where((m) => m != lastMessage).toList();
-            state = state!.copyWith(messages: messagesWithoutTemp);
-          }
-        }
-        
-        messageNotifier.setError('Errore: $e');
+      // Crea sessione se non esiste
+      if (state == null) {
+        await createNewSession(title: content.substring(0, content.length > 50 ? 50 : content.length));
       }
+      
+      // === NUOVO: Prepara il contesto dai file Google Drive ===
+      final selectedDriveFiles = _ref.read(selectedDriveFilesProvider);
+      String fileContext = '';
+      
+      if (selectedDriveFiles.isNotEmpty) {
+        print('📎 Preparazione contesto da ${selectedDriveFiles.length} file...');
+        
+        // Usa l'estrattore per ottenere il contenuto dei file
+        final extractor = GoogleDriveContentExtractor();
+        
+        try {
+          // Estrai il contenuto dai file (dove possibile)
+          fileContext = await extractor.extractMultipleFiles(selectedDriveFiles);
+        } catch (e) {
+          
+          // Fallback: usa solo i riferimenti se l'estrazione fallisce
+          fileContext = '\n\n--- FILE DI RIFERIMENTO ---\n';
+          for (final file in selectedDriveFiles) {
+            fileContext += '📎 ${file.name} (${file.fileTypeDescription})\n';
+          }
+          fileContext += '--- FINE RIFERIMENTI ---\n\n';
+        }
+      }
+      
+      // Prepara il messaggio completo con contesto
+      String fullMessage = content;
+      if (fileContext.isNotEmpty) {
+        fullMessage = """
+  $fileContext
+
+  DOMANDA UTENTE: $content
+
+  Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i file contengono informazioni rilevanti, citale nella risposta.
+  """;
+        
+        print('📝 Messaggio con contesto preparato (${fullMessage.length} caratteri)');
+      }
+      
+      // Salva prima il messaggio utente nel DB (mostra solo il messaggio originale)
+      final savedUserMessage = await SupabaseService.saveMessage(
+        content: content, // Salviamo solo il messaggio originale nel DB
+        isUser: true,
+        sessionId: state!.id,
+      );
+      
+      // Aggiungi il messaggio utente salvato alla UI
+      state = state!.addMessage(savedUserMessage);
+      
+      // Crea messaggio assistente temporaneo con status "sending"
+      final tempAssistantMessage = Message(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        content: '',
+        isUser: false,
+        timestamp: DateTime.now(),
+        status: MessageStatus.sending,
+        sessionId: state!.id,
+      );
+      
+      // Aggiungi messaggio assistente temporaneo
+      state = state!.addMessage(tempAssistantMessage);
+      
+      // Storia da inviare a Claude (escludi il messaggio temporaneo)
+      final historyForClaude = state!.messages
+          .where((m) => m.id != tempAssistantMessage.id && m != savedUserMessage)
+          .toList();
+      
+      // CHIAMA LA EDGE FUNCTION DI SUPABASE con il messaggio completo!
+      final response = await SupabaseService.sendToClaude(
+        message: fullMessage, // Usa il messaggio con contesto dei file
+        sessionId: state!.id,
+        history: historyForClaude,
+      );
+      
+      // Il messaggio dell'assistente è già stato salvato nel DB da sendToClaude
+      // Ora dobbiamo solo aggiornare la UI
+      
+      // Rimuovi il messaggio temporaneo
+      final messagesWithoutTemp = state!.messages
+          .where((m) => m.id != tempAssistantMessage.id)
+          .toList();
+      
+      // Crea il messaggio assistente finale
+      final assistantMessage = Message.assistant(
+        content: response['content'] ?? '',
+        sessionId: state!.id,
+      );
+      
+      // Aggiungi il messaggio dell'assistente alla lista
+      state = state!.copyWith(
+        messages: [...messagesWithoutTemp, assistantMessage],
+      );
+      
+      messageNotifier.setIdle();
+      
+      print('✅ Messaggio inviato e risposta ricevuta');
+      if (selectedDriveFiles.isNotEmpty) {
+        print('📎 File nel contesto: ${selectedDriveFiles.map((f) => f.name).join(', ')}');
+      }
+      print('💰 Tokens usati: ${response['tokens_used']}, Costo: ${response['cost_cents']} cents');
+      print('📨 Totale messaggi nella chat: ${state!.messages.length}');
+      
+      // Aggiorna la lista delle sessioni e l'usage
+      _ref.invalidate(chatSessionsProvider);
+      _ref.invalidate(userUsageProvider);
+      
+    } catch (e) {
+      print('❌ Errore nell\'invio: $e');
+      
+      // Rimuovi il messaggio temporaneo in caso di errore
+      if (state != null && state!.messages.isNotEmpty) {
+        final lastMessage = state!.messages.last;
+        if (lastMessage.status == MessageStatus.sending && !lastMessage.isUser) {
+          // Rimuovi il messaggio "typing" temporaneo
+          final messagesWithoutTemp = state!.messages.where((m) => m != lastMessage).toList();
+          state = state!.copyWith(messages: messagesWithoutTemp);
+        }
+      }
+      
+      messageNotifier.setError('Errore: $e');
     }
+  }
 
   Future<void> deleteCurrentSession() async {
     if (state == null) return;
