@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
+import '../../data/datasources/remote/supabase_service.dart';
+import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
 
@@ -21,7 +23,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isUtilitiesExpanded = false;
   
   // Per la smart preview window
-  List<String> selectedEmails = ['Oggetto mail #1', 'Oggetto mail #2'];
+  List<String> selectedEmails = [];
   
   @override
   void initState() {
@@ -200,6 +202,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
   
   Widget _buildLeftSidebar() {
+    // Carica le sessioni chat
+    final chatSessionsAsync = ref.watch(chatSessionsProvider);
+    final currentSession = ref.watch(currentChatSessionProvider);
+    
     return Container(
       width: 320,
       decoration: const BoxDecoration(
@@ -228,11 +234,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 const SizedBox(height: 12),
                 const Divider(height: 1, color: AppColors.divider),
                 const SizedBox(height: 12),
-                _buildReferenceItem(
-                  title: 'Nome File #1',
-                  badge: 'G DRIVE',
-                  badgeColor: AppColors.badgeGoogleDrive,
-                ),
+                if (currentSession != null)
+                  _buildReferenceItem(
+                    title: currentSession.title,
+                    badge: 'ATTIVA',
+                    badgeColor: AppColors.success,
+                  )
+                else
+                  const Text(
+                    'Nessuna sessione attiva',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -257,24 +273,59 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   const Divider(height: 1, color: AppColors.divider),
                   const SizedBox(height: 8),
                   
-                  // I tuoi pin personali
+                  // I tuoi pin personali - ora mostra le chat salvate
                   _buildExpandableSection(
                     icon: Icons.person_outline,
-                    title: 'I tuoi pin personali',
+                    title: 'Le tue conversazioni',
                     isExpanded: _isPersonalPinsExpanded,
                     onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
-                    children: [
-                      _buildPinItem(
-                        title: 'Contabilità 2024',
-                        badge: 'G DRIVE',
-                        hasRemove: true,
-                      ),
-                      _buildPinItem(
-                        title: 'Contabilità 2023',
-                        badge: 'G DRIVE',
-                        hasRemove: true,
-                      ),
-                    ],
+                    children: chatSessionsAsync.when(
+                      data: (sessions) {
+                        if (sessions.isEmpty) {
+                          return [
+                            const Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Text(
+                                'Nessuna conversazione salvata',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textTertiary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ];
+                        }
+                        return sessions.map((session) => _buildChatItem(
+                          session: session,
+                          isActive: currentSession?.id == session.id,
+                        )).toList();
+                      },
+                      loading: () => [
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                      ],
+                      error: (error, _) => [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Errore nel caricamento',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   
                   const SizedBox(height: 8),
@@ -297,7 +348,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     isExpanded: _isUtilitiesExpanded,
                     onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
                     children: [
-                      _buildUtilityItem(Icons.history, 'Storico Sessioni'),
+                      _buildUtilityItem(Icons.add_comment, 'Nuova conversazione'),
                       _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
                       _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
                     ],
@@ -684,69 +735,170 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
   
-  Widget _buildPinItem({
-    required String title,
-    required String badge,
-    bool hasRemove = false,
+  Widget _buildChatItem({
+    required ChatSession session,
+    required bool isActive,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.badgeGoogleDrive,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              badge,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          if (hasRemove) ...[
-            const SizedBox(width: 8),
-            InkWell(
-              onTap: () {
-                // Remove pin action
-              },
-              child: const Icon(
-                Icons.close,
+      decoration: BoxDecoration(
+        color: isActive ? AppColors.hoverLight : Colors.transparent,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: InkWell(
+        onTap: () {
+          // Carica la sessione selezionata
+          ref.read(currentChatSessionProvider.notifier).loadSession(session);
+        },
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: Row(
+            children: [
+              Icon(
+                Icons.chat_bubble_outline,
                 size: 14,
-                color: AppColors.iconSecondary,
+                color: isActive ? AppColors.primary : AppColors.iconSecondary,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                        color: isActive ? AppColors.primary : AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatSessionDate(session.updatedAt),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isActive)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.success,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: const Text(
+                    'ATTIVA',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  size: 14,
+                  color: AppColors.iconSecondary,
+                ),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                        SizedBox(width: 8),
+                        Text('Elimina', style: TextStyle(color: AppColors.error)),
+                      ],
+                    ),
+                  ),
+                ],
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    _showDeleteConfirmation(session);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _showDeleteConfirmation(ChatSession session) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Elimina conversazione'),
+        content: Text('Sei sicuro di voler eliminare "${session.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Se è la sessione corrente, eliminala
+              final currentSession = ref.read(currentChatSessionProvider);
+              if (currentSession?.id == session.id) {
+                ref.read(currentChatSessionProvider.notifier).deleteCurrentSession();
+              } else {
+                // Altrimenti elimina direttamente dal database
+                SupabaseService.deleteChatSession(session.id).then((_) {
+                  // Aggiorna la lista
+                  ref.invalidate(chatSessionsProvider);
+                });
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Elimina'),
+          ),
         ],
       ),
     );
   }
   
+  String _formatSessionDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inMinutes < 1) {
+      return 'Adesso';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes} min fa';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours} ore fa';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} giorni fa';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
   Widget _buildUtilityItem(IconData icon, String title, {bool isRed = false}) {
     return InkWell(
       onTap: () {
         // Handle utility action
-        if (title == 'Storico Sessioni') {
-          // Apri storico
+        if (title == 'Nuova conversazione') {
+          // Crea nuova sessione
+          ref.read(currentChatSessionProvider.notifier).createNewSession();
         } else if (title == 'Riassunto sessione') {
-          // Genera riassunto
+          // Genera riassunto (da implementare)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Funzionalità in arrivo!')),
+          );
         } else if (title == 'Termina sessione') {
-          // Termina sessione
+          // Termina sessione corrente
           ref.read(currentChatSessionProvider.notifier).clearSession();
         }
       },
