@@ -120,7 +120,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             height: 28,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
-              // Fallback se l'immagine non viene trovata
               return Container(
                 width: 28,
                 height: 28,
@@ -144,6 +143,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ),
       ),
       title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
             'v.0.0.1',
@@ -157,15 +157,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.badgeBeta,
+              color: const Color.fromARGB(255, 255, 229, 232),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
               'beta',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+                color: Color.fromARGB(255, 223, 4, 95),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),

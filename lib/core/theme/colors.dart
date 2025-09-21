@@ -7,7 +7,7 @@ class AppColors {
   static const Color success = Color(0xFF10B981); // Verde per i badge G DRIVE
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFDC2626);
-  static const Color pink = Color(0xFFFF69B4); // Rosa per il badge beta
+  static const Color pink = Color.fromARGB(255, 255, 229, 232); // Rosa per il badge beta
 
   // Surface colors
   static const Color surface = Color(0xFFFAFAFA);
@@ -51,7 +51,7 @@ class AppColors {
   // Badge colors dal design
   static const Color badgeGoogleDrive = Color(0xFF10B981); // Verde per G DRIVE
   static const Color badgeLocal = Color(0xFF6B7280); // Grigio per LOCAL
-  static const Color badgeBeta = Color(0xFFFF69B4); // Rosa per beta
+  static const Color badgeBeta = Color.fromARGB(255, 255, 229, 232); // Rosa per beta
 
   // Input field colors
   static const Color inputBackground = Color(0xFFFFFFFF);
