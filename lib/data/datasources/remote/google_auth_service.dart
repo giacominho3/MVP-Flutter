@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
+import 'package:http/http.dart' as http;
 import '../../../core/constants/google_config.dart';
 
 class GoogleAuthService {
@@ -204,17 +205,55 @@ class GoogleAuthService {
         return null;
       }
       
-      // Usa l'estensione per ottenere un client autenticato
-      final client = await _googleSignIn!.authenticatedClient();
-      
-      if (client == null) {
+      // Su Web, crea un client custom con token
+      if (kIsWeb) {
         if (kDebugMode) {
-          print('⚠️ Impossibile ottenere client autenticato');
+          print('🌐 Creazione client autenticato per Web...');
         }
-        return null;
+        
+        // Ottieni il token di accesso
+        final auth = await _currentAccount!.authentication;
+        final accessToken = auth.accessToken;
+        
+        if (accessToken == null) {
+          if (kDebugMode) {
+            print('❌ Access token non disponibile');
+          }
+          return null;
+        }
+        
+        if (kDebugMode) {
+          print('🔑 Access token ottenuto: ${accessToken.substring(0, 20)}...');
+        }
+        
+        // Crea un client HTTP con il token
+        final client = _GoogleAuthClient(
+          accessToken: accessToken,
+          idToken: auth.idToken,
+        );
+        
+        if (kDebugMode) {
+          print('✅ Client Web creato con successo');
+        }
+        
+        return client;
+      } else {
+        // Su Desktop usa l'estensione
+        if (kDebugMode) {
+          print('🖥️ Uso estensione per Desktop...');
+        }
+        
+        final client = await _googleSignIn!.authenticatedClient();
+        
+        if (client == null) {
+          if (kDebugMode) {
+            print('⚠️ Impossibile ottenere client autenticato');
+          }
+          return null;
+        }
+        
+        return client;
       }
-      
-      return client;
     } catch (e) {
       if (kDebugMode) {
         print('❌ Errore ottenendo client autenticato: $e');
@@ -222,7 +261,7 @@ class GoogleAuthService {
       return null;
     }
   }
-  
+
   /// Verifica che tutti i permessi richiesti siano stati concessi
   Future<bool> _checkPermissions() async {
     try {
@@ -292,4 +331,52 @@ class GoogleAuthService {
       'photoUrl': _currentAccount!.photoUrl,
     };
   }
+}
+
+class _GoogleAuthClient extends http.BaseClient implements auth.AuthClient {
+  final String accessToken;
+  final String? idToken;
+  final http.Client _client = http.Client();
+  
+  _GoogleAuthClient({
+    required this.accessToken,
+    this.idToken,
+  });
+  
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    // Aggiungi l'header Authorization a ogni richiesta
+    request.headers['Authorization'] = 'Bearer $accessToken';
+    
+    if (kDebugMode) {
+      print('📤 Request: ${request.method} ${request.url}');
+    }
+    
+    return _client.send(request);
+  }
+  
+  @override
+  void close() {
+    _client.close();
+  }
+  
+  @override
+  Future<void> refreshCredentials() async {
+    // Su Web, il refresh viene gestito automaticamente da Google Sign-In
+    if (kDebugMode) {
+      print('🔄 Refresh credentials richiesto');
+    }
+  }
+  
+  @override
+  get credentials => auth.AccessCredentials(
+    auth.AccessToken(
+      'Bearer',
+      accessToken,
+      // Scadenza token - impostiamo 1 ora da ora (verrà refreshato automaticamente)
+      DateTime.now().add(const Duration(hours: 1)).toUtc(),
+    ),
+    null, // refreshToken non disponibile su Web
+    GoogleConfig.scopes,
+  );
 }

@@ -2,6 +2,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'google_auth_service.dart';
 
@@ -155,6 +156,16 @@ class GoogleDriveService {
   // Drive API instance
   drive.DriveApi? _driveApi;
   final GoogleAuthService _authService = GoogleAuthService();
+  GoogleSignIn? _googleSignIn;
+  GoogleSignInAccount? _currentAccount;
+  bool _isInitialized = false;
+  
+  GoogleSignInAccount? get currentAccount => _currentAccount;
+  bool get isSignedIn => _currentAccount != null;
+  String? get userEmail => _currentAccount?.email;
+  String? get userName => _currentAccount?.displayName;
+  String? get userPhotoUrl => _currentAccount?.photoUrl;
+  
   
   /// Inizializza il servizio Drive
   Future<void> initialize() async {
