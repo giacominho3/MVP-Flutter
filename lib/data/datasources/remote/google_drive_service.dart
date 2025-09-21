@@ -1,4 +1,6 @@
 // lib/data/datasources/remote/google_drive_service.dart
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'google_auth_service.dart';
@@ -365,7 +367,6 @@ class GoogleDriveService {
     }
   }
   
-  /// Esporta un file Google Workspace in un formato compatibile
   Future<List<int>?> exportGoogleFile(String fileId, String mimeType) async {
     try {
       await _ensureInitialized();
@@ -374,12 +375,22 @@ class GoogleDriveService {
       String exportMimeType;
       switch (mimeType) {
         case 'application/vnd.google-apps.document':
-          exportMimeType = 'application/pdf';
+          // Prima prova testo semplice, poi PDF come fallback
+          exportMimeType = 'text/plain';
           break;
         case 'application/vnd.google-apps.spreadsheet':
-          exportMimeType = 'application/pdf';
+          // CSV è il migliore per l'estrazione dati
+          exportMimeType = 'text/csv';
           break;
         case 'application/vnd.google-apps.presentation':
+          // Testo semplice per le slide
+          exportMimeType = 'text/plain';
+          break;
+        case 'application/vnd.google-apps.form':
+          // I form non sono esportabili generalmente
+          throw Exception('Google Forms non possono essere esportati');
+        case 'application/vnd.google-apps.drawing':
+          // I disegni vanno esportati come PDF o PNG
           exportMimeType = 'application/pdf';
           break;
         default:
@@ -390,22 +401,86 @@ class GoogleDriveService {
         print('📤 Export file Google: $fileId come $exportMimeType');
       }
       
-      final response = await _driveApi!.files.export(
-        fileId,
-        exportMimeType,
-        downloadOptions: drive.DownloadOptions.fullMedia,
-      ) as drive.Media;
-      
-      final bytes = <int>[];
-      await for (final chunk in response.stream) {
-        bytes.addAll(chunk);
+      try {
+        final response = await _driveApi!.files.export(
+          fileId,
+          exportMimeType,
+          downloadOptions: drive.DownloadOptions.fullMedia,
+        ) as drive.Media;
+        
+        final bytes = <int>[];
+        await for (final chunk in response.stream) {
+          bytes.addAll(chunk);
+        }
+        
+        if (kDebugMode) {
+          print('✅ File esportato: ${bytes.length} bytes');
+        }
+        
+        // Se il testo semplice fallisce o è vuoto, prova con un formato alternativo
+        if (bytes.isEmpty && mimeType == 'application/vnd.google-apps.document') {
+          if (kDebugMode) {
+            print('⚠️ Export testo vuoto, provo con HTML...');
+          }
+          
+          // Prova con HTML come fallback
+          final htmlResponse = await _driveApi!.files.export(
+            fileId,
+            'text/html',
+            downloadOptions: drive.DownloadOptions.fullMedia,
+          ) as drive.Media;
+          
+          bytes.clear();
+          await for (final chunk in htmlResponse.stream) {
+            bytes.addAll(chunk);
+          }
+          
+          // Se abbiamo HTML, estrai il testo
+          if (bytes.isNotEmpty) {
+            final htmlContent = utf8.decode(bytes);
+            // Rimuovi tag HTML basilari
+            final textContent = _stripHtml(htmlContent);
+            return utf8.encode(textContent);
+          }
+        }
+        
+        return bytes;
+        
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ Errore con formato $exportMimeType: $e');
+        }
+        
+        // Se il formato primario fallisce, prova con PDF come ultimo tentativo
+        if (exportMimeType != 'application/pdf') {
+          if (kDebugMode) {
+            print('🔄 Tentativo con PDF come fallback...');
+          }
+          
+          try {
+            final pdfResponse = await _driveApi!.files.export(
+              fileId,
+              'application/pdf', 
+              downloadOptions: drive.DownloadOptions.fullMedia,
+            ) as drive.Media;
+            
+            final pdfBytes = <int>[];
+            await for (final chunk in pdfResponse.stream) {
+              pdfBytes.addAll(chunk);
+            }
+            
+            // Ritorna i bytes del PDF (l'extractor gestirà che è un PDF)
+            return pdfBytes;
+            
+          } catch (pdfError) {
+            if (kDebugMode) {
+              print('❌ Anche il PDF fallisce: $pdfError');
+            }
+          }
+        }
+        
+        throw e;
       }
-      
-      if (kDebugMode) {
-        print('✅ File esportato: ${bytes.length} bytes');
-      }
-      
-      return bytes;
     } catch (e) {
       if (kDebugMode) {
         print('❌ Errore export file: $e');
@@ -414,6 +489,40 @@ class GoogleDriveService {
     }
   }
   
+  /// Helper per rimuovere HTML tags basilari
+  String _stripHtml(String htmlContent) {
+    // Rimuovi script e style
+    htmlContent = htmlContent.replaceAll(RegExp(r'<script[^>]*>.*?</script>', 
+        multiLine: true, caseSensitive: false), '');
+    htmlContent = htmlContent.replaceAll(RegExp(r'<style[^>]*>.*?</style>', 
+        multiLine: true, caseSensitive: false), '');
+    
+    // Converti br e p in newline
+    htmlContent = htmlContent.replaceAll(RegExp(r'<br[^>]*>', caseSensitive: false), '\n');
+    htmlContent = htmlContent.replaceAll(RegExp(r'</p>', caseSensitive: false), '\n\n');
+    htmlContent = htmlContent.replaceAll(RegExp(r'</div>', caseSensitive: false), '\n');
+    
+    // Rimuovi tutti i tag HTML rimanenti
+    htmlContent = htmlContent.replaceAll(RegExp(r'<[^>]*>'), '');
+    
+    // Decodifica entità HTML comuni
+    htmlContent = htmlContent
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&mdash;', '—')
+        .replaceAll('&ndash;', '–');
+    
+    // Pulisci spazi multipli
+    htmlContent = htmlContent.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    htmlContent = htmlContent.replaceAll(RegExp(r' {2,}'), ' ');
+    
+    return htmlContent.trim();
+  }
+
   /// Verifica che il servizio sia inizializzato
   Future<void> _ensureInitialized() async {
     if (_driveApi == null) {
