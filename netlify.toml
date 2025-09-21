@@ -1,0 +1,11 @@
+[build.environment]
+  FLUTTER_VERSION = "3.19.0"
+
+[build]
+  command = "./build.sh"
+  publish = "build/web"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
