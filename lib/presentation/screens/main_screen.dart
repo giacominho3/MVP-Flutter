@@ -9,6 +9,7 @@ import '../providers/chat_provider.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
 import '../providers/google_drive_provider.dart';
 import '../widgets/google_drive_dialog.dart';
+import '../../data/datasources/remote/google_token_service.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -1393,7 +1394,6 @@ Widget _buildGoogleConnectionSection() {
         children: [
           Row(
             children: [
-              // Logo Google SVG
               SvgPicture.asset(
                 'assets/icons/google_logo.svg',
                 width: 16,
@@ -1409,7 +1409,6 @@ Widget _buildGoogleConnectionSection() {
                 ),
               ),
               const Spacer(),
-              // Sempre connesso perché è il nostro sistema di auth principale
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
@@ -1429,7 +1428,6 @@ Widget _buildGoogleConnectionSection() {
           ),
           const SizedBox(height: 12),
           
-          // Mostra sempre info utente e pulsante Drive
           if (authState is AppAuthStateAuthenticated)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1442,44 +1440,6 @@ Widget _buildGoogleConnectionSection() {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
-                // BOTTONE TEST TOKEN - TEMPORANEO
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      print('=== TEST GOOGLE TOKEN ===');
-                      try {
-                        // Test della funzione SQL
-                        final sqlResult = await SupabaseService.client.rpc('get_google_token');
-                        print('SQL Result: $sqlResult');
-                        
-                        // Test della Edge Function
-                        final edgeResult = await SupabaseService.client.functions.invoke(
-                          'google-drive-auth',
-                          body: {},
-                        );
-                        print('Edge Function Result: ${edgeResult.data}');
-                        
-                        // Test del token service
-                        final token = await GoogleTokenService.getGoogleToken();
-                        print('Token ottenuto: ${token != null}');
-                        if (token != null) {
-                          print('Token preview: ${token.substring(0, 20)}...');
-                        }
-                      } catch (e) {
-                        print('Errore test: $e');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.all(8),
-                    ),
-                    child: const Text('🧪 TEST TOKEN', style: TextStyle(fontSize: 11)),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
                 SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
@@ -1499,142 +1459,6 @@ Widget _buildGoogleConnectionSection() {
                 ),
               ],
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGoogleConnectButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 36,
-      child: ElevatedButton(
-        onPressed: () async {
-          await ref.read(authStateProvider.notifier).signInWithSupabaseGoogle();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF3C4043),
-          elevation: 1,
-          side: const BorderSide(color: Color(0xFFDADCE0)),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SvgPicture.asset(
-              'assets/icons/google_logo.svg',
-              width: 18,
-              height: 18,
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Accedi con Google',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.25,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showGoogleDriveSearch() async {
-    final selectedFiles = await GoogleDriveDialog.show(context);
-    
-    if (selectedFiles != null && selectedFiles.isNotEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${selectedFiles.length} file aggiunti ai riferimenti'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    }
-  }
-
-  Widget _buildDriveFileReference(DriveFile file) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.outline),
-      ),
-      child: Row(
-        children: [
-          // Icona file
-          Text(
-            file.fileTypeIcon,
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(width: 8),
-          
-          // Nome file
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  file.name,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  file.fileTypeDescription,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Badge Google Drive
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.badgeGoogleDrive,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: const Text(
-              'G DRIVE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          
-          const SizedBox(width: 4),
-          
-          // Pulsante rimuovi
-          InkWell(
-            onTap: () {
-              ref.read(selectedDriveFilesProvider.notifier).removeFile(file.id);
-            },
-            child: const Icon(
-              Icons.close,
-              size: 14,
-              color: AppColors.iconSecondary,
-            ),
-          ),
         ],
       ),
     );
