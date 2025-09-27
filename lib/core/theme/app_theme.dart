@@ -143,16 +143,8 @@ class AppTheme {
       surfaceTintColor: Colors.transparent,
     ),
     
-    // Card theme per elementi container - RIMOSSO const
-    cardTheme: CardThemeData(
-      color: AppColors.surface,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppColors.outline),
-      ),
-      surfaceTintColor: Colors.transparent,
-    ),
+    // RIMOSSO cardTheme completamente - non supportato in Flutter 3.19.0
+    // Il tema delle card verrà gestito direttamente nei widget
     
     // Button themes
     elevatedButtonTheme: ElevatedButtonThemeData(
