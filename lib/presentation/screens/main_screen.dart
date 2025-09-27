@@ -105,14 +105,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               children: [
                 // Sidebar sinistra
                 _buildLeftSidebar(),
-                
-                // Area chat centrale
+
+                // Area principale destra (Smart Preview + Chat)
                 Expanded(
-                  child: _buildChatArea(chatSession, messageState),
+                  child: Column(
+                    children: [
+                      // Smart Preview Window in alto
+                      _buildSmartPreviewWindow(),
+
+                      // Area chat in basso
+                      Expanded(
+                        child: _buildChatArea(chatSession, messageState),
+                      ),
+                    ],
+                  ),
                 ),
-                
-                // Smart Preview Window a destra
-                _buildSmartPreviewWindow(),
               ],
             ),
           ),
@@ -534,74 +541,113 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     Widget _buildSmartPreviewWindow() {
       return Container(
-        width: 320,
+        height: 250, // Fixed height for top section
         decoration: const BoxDecoration(
           color: AppColors.previewBackground,
           border: Border(
-            left: BorderSide(color: AppColors.previewBorder, width: 1),
+            bottom: BorderSide(color: AppColors.previewBorder, width: 1),
           ),
         ),
         child: Column(
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(
                   bottom: BorderSide(color: AppColors.divider, width: 1),
                 ),
               ),
-              child: const Center(
-                child: Text(
-                  'Smart preview window',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.preview_outlined,
+                    size: 18,
+                    color: AppColors.iconPrimary,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Smart Preview - Documenti Condivisi',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final selectedFiles = ref.watch(selectedDriveFilesProvider);
+                      if (selectedFiles.isNotEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${selectedFiles.length} file',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
               ),
             ),
-            
+
             // Content area
             Expanded(
               child: Consumer(
                 builder: (context, ref, _) {
                   final selectedFiles = ref.watch(selectedDriveFilesProvider);
-                  
+
                   if (_selectedFileForPreview != null) {
                     // Mostra anteprima del file selezionato
                     return _buildFilePreview(_selectedFileForPreview!);
                   } else if (selectedFiles.isNotEmpty) {
-                    // Mostra lista dei file disponibili per preview
-                    return _buildFileList(selectedFiles);
+                    // Mostra lista dei file disponibili per preview (orizzontale per spazio ottimizzato)
+                    return _buildCompactFileList(selectedFiles);
                   } else {
                     // Nessun contenuto
                     return const Center(
-                      child: Column(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             Icons.preview_outlined,
-                            size: 48,
+                            size: 32,
                             color: AppColors.iconSecondary,
                           ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Nessun file da visualizzare',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Seleziona file da Google Drive',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textTertiary,
-                            ),
+                          SizedBox(width: 12),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Nessun documento condiviso',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Aggiungi file da Google Drive per vederli qui',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -617,23 +663,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     // Aggiungi questi metodi helper:
 
-    Widget _buildFileList(List<DriveFile> files) {
-      return ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'File disponibili per anteprima',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...files.map((file) => _buildFilePreviewCard(file)),
-        ],
-      );
-    }
 
     Widget _buildFilePreviewCard(DriveFile file) {
       return Container(
@@ -702,6 +731,101 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget _buildCompactFileList(List<DriveFile> files) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'File disponibili per anteprima (${files.length})',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Lista orizzontale dei file
+            SizedBox(
+              height: 80,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: files.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final file = files[index];
+                  return _buildCompactFileCard(file);
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget _buildCompactFileCard(DriveFile file) {
+      final isSelected = _selectedFileForPreview?.id == file.id;
+
+      return Material(
+        color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        elevation: 1,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              _selectedFileForPreview = file;
+            });
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 120,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isSelected ? AppColors.primary : AppColors.outline,
+                width: isSelected ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Icona file
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      file.fileTypeIcon,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Nome file (troncato)
+                Text(
+                  file.name,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
         ),
