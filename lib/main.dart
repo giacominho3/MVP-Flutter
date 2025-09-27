@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/constants/storage_keys.dart';
 import 'core/constants/supabase_config.dart';
+import 'data/datasources/remote/google_auth_service.dart';
 
 // Stub per le funzionalità desktop non disponibili su web
 void _initializeDesktopFeatures() {
@@ -29,7 +30,10 @@ Future<void> main() async {
   
   // Inizializza Hive per caching locale
   await _initializeHive();
-  
+
+  // Inizializza Google Auth Service
+  await _initializeGoogleAuth();
+
   print('✅ App inizializzata con successo');
   
   runApp(
@@ -90,13 +94,27 @@ Future<void> _initializeHive() async {
       // Su desktop, usa path_provider
       await Hive.initFlutter();
     }
-    
+
     // Apri i box necessari
     await Hive.openBox(StorageKeys.cacheBox);
     await Hive.openBox(StorageKeys.settingsBox);
-    
+
     print('✅ Hive inizializzato con successo');
   } catch (e) {
     print('❌ Errore nell\'inizializzazione di Hive: $e');
+  }
+}
+
+Future<void> _initializeGoogleAuth() async {
+  try {
+    print('🔧 Inizializzazione Google Auth Service...');
+
+    final googleAuthService = GoogleAuthService();
+    await googleAuthService.initialize();
+
+    print('✅ Google Auth Service inizializzato con successo');
+  } catch (e) {
+    print('❌ Errore nell\'inizializzazione di Google Auth Service: $e');
+    // Non bloccare l'app se Google Auth fallisce
   }
 }

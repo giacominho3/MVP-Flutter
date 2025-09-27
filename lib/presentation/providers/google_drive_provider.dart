@@ -1,6 +1,7 @@
 // lib/presentation/providers/google_drive_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
+import '../../data/datasources/remote/google_auth_service.dart';
 
 // Provider per il servizio Google Drive
 final googleDriveServiceProvider = Provider<GoogleDriveService>((ref) {
@@ -16,6 +17,17 @@ final googleDriveStateProvider = StateNotifierProvider<GoogleDriveNotifier, Goog
 // Provider per i file attualmente selezionati (riferimenti sessione)
 final selectedDriveFilesProvider = StateNotifierProvider<SelectedFilesNotifier, List<DriveFile>>((ref) {
   return SelectedFilesNotifier();
+});
+
+// Provider per il servizio Google Auth
+final googleAuthServiceProvider = Provider<GoogleAuthService>((ref) {
+  return GoogleAuthService();
+});
+
+// Provider per lo stato di autenticazione Google
+final googleAuthStateProvider = StateNotifierProvider<GoogleAuthNotifier, GoogleAuthState>((ref) {
+  final service = ref.watch(googleAuthServiceProvider);
+  return GoogleAuthNotifier(service);
 });
 
 // Stati possibili per Google Drive
@@ -284,4 +296,102 @@ class SelectedFilesNotifier extends StateNotifier<List<DriveFile>> {
   
   // Ottieni il numero di file selezionati
   int get selectionCount => state.length;
+}
+
+// Stati possibili per Google Auth
+sealed class GoogleAuthState {
+  const GoogleAuthState();
+}
+
+class GoogleAuthInitial extends GoogleAuthState {
+  const GoogleAuthInitial();
+}
+
+class GoogleAuthLoading extends GoogleAuthState {
+  const GoogleAuthLoading();
+}
+
+class GoogleAuthAuthenticated extends GoogleAuthState {
+  final String email;
+  final String? name;
+  final String? photoUrl;
+
+  const GoogleAuthAuthenticated({
+    required this.email,
+    this.name,
+    this.photoUrl,
+  });
+}
+
+class GoogleAuthUnauthenticated extends GoogleAuthState {
+  const GoogleAuthUnauthenticated();
+}
+
+class GoogleAuthError extends GoogleAuthState {
+  final String message;
+  const GoogleAuthError(this.message);
+}
+
+// Notifier per gestire lo stato di Google Auth
+class GoogleAuthNotifier extends StateNotifier<GoogleAuthState> {
+  final GoogleAuthService _service;
+
+  GoogleAuthNotifier(this._service) : super(const GoogleAuthInitial()) {
+    _checkAuthStatus();
+  }
+
+  // Controlla lo stato di autenticazione all'avvio
+  Future<void> _checkAuthStatus() async {
+    try {
+      if (_service.isSignedIn && _service.currentAccount != null) {
+        final account = _service.currentAccount!;
+        state = GoogleAuthAuthenticated(
+          email: account.email,
+          name: account.displayName,
+          photoUrl: account.photoUrl,
+        );
+      } else {
+        state = const GoogleAuthUnauthenticated();
+      }
+    } catch (e) {
+      state = const GoogleAuthUnauthenticated();
+    }
+  }
+
+  // Effettua il login
+  Future<void> signIn() async {
+    try {
+      state = const GoogleAuthLoading();
+
+      final account = await _service.signIn();
+
+      if (account != null) {
+        state = GoogleAuthAuthenticated(
+          email: account.email,
+          name: account.displayName,
+          photoUrl: account.photoUrl,
+        );
+      } else {
+        state = const GoogleAuthUnauthenticated();
+      }
+    } catch (e) {
+      state = GoogleAuthError('Errore durante il login: ${e.toString()}');
+    }
+  }
+
+  // Effettua il logout
+  Future<void> signOut() async {
+    try {
+      state = const GoogleAuthLoading();
+      await _service.signOut();
+      state = const GoogleAuthUnauthenticated();
+    } catch (e) {
+      state = GoogleAuthError('Errore durante il logout: ${e.toString()}');
+    }
+  }
+
+  // Aggiorna lo stato
+  void refresh() {
+    _checkAuthStatus();
+  }
 }

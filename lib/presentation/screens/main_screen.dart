@@ -1376,8 +1376,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
 Widget _buildGoogleConnectionSection() {
-    final authState = ref.watch(authStateProvider);
-    
+    final googleAuthState = ref.watch(googleAuthStateProvider);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -1409,59 +1409,177 @@ Widget _buildGoogleConnectionSection() {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.success,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: const Text(
-                  'CONNESSO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              _buildGoogleStatusBadge(googleAuthState),
             ],
           ),
           const SizedBox(height: 12),
-          
-          if (authState is AppAuthStateAuthenticated)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  authState.userInfo['email'] ?? 'Email non disponibile',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      _showGoogleDriveSearch();
-                    },
-                    icon: const Icon(Icons.search, size: 16),
-                    label: const Text(
-                      'Cerca file in Drive',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      minimumSize: const Size(0, 36),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+
+          _buildGoogleConnectionContent(googleAuthState),
         ],
       ),
     );
+  }
+
+  Widget _buildGoogleStatusBadge(GoogleAuthState state) {
+    switch (state) {
+      case GoogleAuthAuthenticated():
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.success,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: const Text(
+            'CONNESSO',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      case GoogleAuthLoading():
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.warning,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: const Text(
+            'CONNESSIONE...',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      case GoogleAuthError():
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.error,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: const Text(
+            'ERRORE',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      default:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.textTertiary,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: const Text(
+            'NON CONNESSO',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildGoogleConnectionContent(GoogleAuthState state) {
+    switch (state) {
+      case GoogleAuthAuthenticated(:final email):
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              email,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () {
+                  _showGoogleDriveSearch();
+                },
+                icon: const Icon(Icons.search, size: 16),
+                label: const Text(
+                  'Cerca file in Drive',
+                  style: TextStyle(fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: const Size(0, 36),
+                ),
+              ),
+            ),
+          ],
+        );
+      case GoogleAuthError(:final message):
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () {
+                  ref.read(googleAuthStateProvider.notifier).signIn();
+                },
+                icon: const Icon(Icons.login, size: 16),
+                label: const Text(
+                  'Accedi a Google',
+                  style: TextStyle(fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: const Size(0, 36),
+                ),
+              ),
+            ),
+          ],
+        );
+      case GoogleAuthLoading():
+        return const Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      default:
+        return SizedBox(
+          width: double.infinity,
+          child: TextButton.icon(
+            onPressed: () {
+              ref.read(googleAuthStateProvider.notifier).signIn();
+            },
+            icon: const Icon(Icons.login, size: 16),
+            label: const Text(
+              'Accedi a Google',
+              style: TextStyle(fontSize: 12),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: const Size(0, 36),
+            ),
+          ),
+        );
+    }
   }
 
   void _showGoogleDriveSearch() async {
