@@ -1374,6 +1374,136 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
+Widget _buildGoogleConnectionSection() {
+    final authState = ref.watch(authStateProvider);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFBFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.outline,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Logo Google SVG
+              SvgPicture.asset(
+                'assets/icons/google_logo.svg',
+                width: 16,
+                height: 16,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Google Workspace',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              // Sempre connesso perché è il nostro sistema di auth principale
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.success,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Text(
+                  'CONNESSO',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Mostra sempre info utente e pulsante Drive
+          if (authState is AppAuthStateAuthenticated)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  authState.userInfo['email'] ?? 'Email non disponibile',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // BOTTONE TEST TOKEN - TEMPORANEO
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      print('=== TEST GOOGLE TOKEN ===');
+                      try {
+                        // Test della funzione SQL
+                        final sqlResult = await SupabaseService.client.rpc('get_google_token');
+                        print('SQL Result: $sqlResult');
+                        
+                        // Test della Edge Function
+                        final edgeResult = await SupabaseService.client.functions.invoke(
+                          'google-drive-auth',
+                          body: {},
+                        );
+                        print('Edge Function Result: ${edgeResult.data}');
+                        
+                        // Test del token service
+                        final token = await GoogleTokenService.getGoogleToken();
+                        print('Token ottenuto: ${token != null}');
+                        if (token != null) {
+                          print('Token preview: ${token.substring(0, 20)}...');
+                        }
+                      } catch (e) {
+                        print('Errore test: $e');
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.all(8),
+                    ),
+                    child: const Text('🧪 TEST TOKEN', style: TextStyle(fontSize: 11)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _showGoogleDriveSearch();
+                    },
+                    icon: const Icon(Icons.search, size: 16),
+                    label: const Text(
+                      'Cerca file in Drive',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGoogleConnectButton() {
     return SizedBox(
       width: double.infinity,
@@ -1510,133 +1640,3 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 }
-
-Widget _buildGoogleConnectionSection() {
-    final authState = ref.watch(authStateProvider);
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFBFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.outline,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Logo Google SVG
-              SvgPicture.asset(
-                'assets/icons/google_logo.svg',
-                width: 16,
-                height: 16,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Google Workspace',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              // Sempre connesso perché è il nostro sistema di auth principale
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.success,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: const Text(
-                  'CONNESSO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          
-          // Mostra sempre info utente e pulsante Drive
-          if (authState is AppAuthStateAuthenticated)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  authState.userInfo['email'] ?? 'Email non disponibile',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                // BOTTONE TEST TOKEN - TEMPORANEO
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      print('=== TEST GOOGLE TOKEN ===');
-                      try {
-                        // Test della funzione SQL
-                        final sqlResult = await SupabaseService.client.rpc('get_google_token');
-                        print('SQL Result: $sqlResult');
-                        
-                        // Test della Edge Function
-                        final edgeResult = await SupabaseService.client.functions.invoke(
-                          'google-drive-auth',
-                          body: {},
-                        );
-                        print('Edge Function Result: ${edgeResult.data}');
-                        
-                        // Test del token service
-                        final token = await GoogleTokenService.getGoogleToken();
-                        print('Token ottenuto: ${token != null}');
-                        if (token != null) {
-                          print('Token preview: ${token.substring(0, 20)}...');
-                        }
-                      } catch (e) {
-                        print('Errore test: $e');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.all(8),
-                    ),
-                    child: const Text('🧪 TEST TOKEN', style: TextStyle(fontSize: 11)),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      _showGoogleDriveSearch();
-                    },
-                    icon: const Icon(Icons.search, size: 16),
-                    label: const Text(
-                      'Cerca file in Drive',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      minimumSize: const Size(0, 36),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
