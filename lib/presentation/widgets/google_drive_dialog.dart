@@ -1,4 +1,5 @@
 // lib/presentation/widgets/google_drive_dialog.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
@@ -30,8 +31,29 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(googleDriveStateProvider.notifier).initialize();
+      _checkAndInitialize();
     });
+  }
+
+  Future<void> _checkAndInitialize() async {
+    // Check if Google is authenticated first
+    final googleAuthState = ref.read(googleAuthStateProvider);
+
+    if (googleAuthState is! GoogleAuthAuthenticated) {
+      // If not authenticated, show error
+      ref.read(googleDriveStateProvider.notifier).state =
+          const GoogleDriveError('Non sei autenticato con Google. Torna indietro e effettua il login.');
+      return;
+    }
+
+    // If authenticated, proceed with initialization
+    try {
+      await ref.read(googleDriveStateProvider.notifier).initialize();
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Errore inizializzazione Drive Dialog: $e');
+      }
+    }
   }
   
   @override

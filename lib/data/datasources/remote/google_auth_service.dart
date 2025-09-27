@@ -27,14 +27,19 @@ class GoogleAuthService {
     try {
       if (kDebugMode) {
         print('🔧 Inizializzazione Google Sign In...');
+        print('🌐 Platform: ${kIsWeb ? "Web" : "Desktop"}');
       }
-      
+
       // Configurazione diversa per Desktop vs Web
       if (kIsWeb) {
         _googleSignIn = GoogleSignIn(
           clientId: GoogleConfig.webClientId,
           scopes: GoogleConfig.scopes,
         );
+        if (kDebugMode) {
+          print('🔑 Web Client ID: ${GoogleConfig.webClientId}');
+          print('📋 Scopes: ${GoogleConfig.scopes}');
+        }
       } else {
         // Per Desktop
         _googleSignIn = GoogleSignIn(
@@ -42,20 +47,26 @@ class GoogleAuthService {
           scopes: GoogleConfig.scopes,
           // Per desktop, Google gestisce automaticamente il flusso OAuth
         );
+        if (kDebugMode) {
+          print('🔑 Desktop Client ID: ${GoogleConfig.desktopClientId}');
+        }
       }
-      
+
       // Controlla se l'utente è già loggato
       await _checkExistingSignIn();
-      
+
       if (kDebugMode) {
         print('✅ Google Sign In inizializzato');
         if (_currentAccount != null) {
           print('👤 Utente già connesso: ${_currentAccount!.email}');
+        } else {
+          print('❌ Nessun utente connesso');
         }
       }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Errore inizializzazione Google Sign In: $e');
+        print('📋 Stack trace: ${StackTrace.current}');
       }
       rethrow;
     }
@@ -76,17 +87,33 @@ class GoogleAuthService {
   /// Effettua il login con Google
   Future<GoogleSignInAccount?> signIn() async {
     try {
-      if (_googleSignIn == null) {
-        throw Exception('Google Sign In non inizializzato. Chiama initialize() prima.');
-      }
-      
       if (kDebugMode) {
         print('🔐 Avvio processo di login Google...');
+        print('🔍 GoogleSignIn instance: ${_googleSignIn != null ? "OK" : "NULL"}');
       }
-      
+
+      if (_googleSignIn == null) {
+        if (kDebugMode) {
+          print('❌ Google Sign In non inizializzato, provo a inizializzare...');
+        }
+        await initialize();
+      }
+
+      if (_googleSignIn == null) {
+        throw Exception('Impossibile inizializzare Google Sign In');
+      }
+
+      if (kDebugMode) {
+        print('🚀 Chiamata signIn()...');
+      }
+
       // Mostra la UI di Google per il login
       _currentAccount = await _googleSignIn!.signIn();
-      
+
+      if (kDebugMode) {
+        print('📤 Risposta signIn: ${_currentAccount != null ? "Account ricevuto" : "NULL"}');
+      }
+
       if (_currentAccount != null) {
         if (kDebugMode) {
           print('✅ Login riuscito!');
@@ -94,27 +121,28 @@ class GoogleAuthService {
           print('👤 Nome: ${_currentAccount!.displayName}');
           print('🔑 ID: ${_currentAccount!.id}');
         }
-        
+
         // Verifica che abbiamo tutti i permessi richiesti
         final granted = await _checkPermissions();
-        if (!granted) {
-          if (kDebugMode) {
-            print('⚠️ Non tutti i permessi sono stati concessi');
-          }
+        if (kDebugMode) {
+          print('🔐 Permessi concessi: $granted');
         }
       } else {
         if (kDebugMode) {
-          print('❌ Login annullato dall\'utente');
+          print('❌ Login annullato dall\'utente o fallito');
         }
       }
-      
+
       return _currentAccount;
     } catch (error) {
       if (kDebugMode) {
         print('❌ Errore durante il login: $error');
+        print('📋 Error type: ${error.runtimeType}');
+        print('📋 Stack trace: ${StackTrace.current}');
       }
       // Non rilanciare l'errore se l'utente ha solo annullato
-      if (error.toString().contains('sign_in_canceled')) {
+      if (error.toString().contains('sign_in_canceled') ||
+          error.toString().contains('popup_closed_by_user')) {
         return null;
       }
       rethrow;

@@ -1,4 +1,5 @@
 // lib/presentation/providers/google_drive_provider.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
 import '../../data/datasources/remote/google_auth_service.dart';
@@ -361,9 +362,21 @@ class GoogleAuthNotifier extends StateNotifier<GoogleAuthState> {
   // Effettua il login
   Future<void> signIn() async {
     try {
+      if (kDebugMode) {
+        print('🏁 Provider: Inizio signIn()');
+      }
+
       state = const GoogleAuthLoading();
 
+      if (kDebugMode) {
+        print('🔄 Provider: Stato cambiato a Loading');
+      }
+
       final account = await _service.signIn();
+
+      if (kDebugMode) {
+        print('📱 Provider: Ricevuto account: ${account != null ? account.email : "NULL"}');
+      }
 
       if (account != null) {
         state = GoogleAuthAuthenticated(
@@ -371,10 +384,19 @@ class GoogleAuthNotifier extends StateNotifier<GoogleAuthState> {
           name: account.displayName,
           photoUrl: account.photoUrl,
         );
+        if (kDebugMode) {
+          print('✅ Provider: Stato cambiato a Authenticated (${account.email})');
+        }
       } else {
         state = const GoogleAuthUnauthenticated();
+        if (kDebugMode) {
+          print('❌ Provider: Stato cambiato a Unauthenticated');
+        }
       }
     } catch (e) {
+      if (kDebugMode) {
+        print('💥 Provider: Errore nel signIn: $e');
+      }
       state = GoogleAuthError('Errore durante il login: ${e.toString()}');
     }
   }
