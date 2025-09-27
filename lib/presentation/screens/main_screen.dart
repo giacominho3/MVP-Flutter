@@ -609,12 +609,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 builder: (context, ref, _) {
                   final selectedFiles = ref.watch(selectedDriveFilesProvider);
 
-                  if (_selectedFileForPreview != null) {
-                    // Mostra anteprima del file selezionato
-                    return _buildFilePreview(_selectedFileForPreview!);
-                  } else if (selectedFiles.isNotEmpty) {
-                    // Mostra lista dei file disponibili per preview (orizzontale per spazio ottimizzato)
-                    return _buildCompactFileList(selectedFiles);
+                  if (selectedFiles.isNotEmpty) {
+                    // Se nessun file è selezionato per preview, usa il primo della lista
+                    final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
+
+                    return Column(
+                      children: [
+                        // File selector compatto in alto
+                        _buildCompactFileSelector(selectedFiles, fileToPreview),
+                        const Divider(height: 1, color: AppColors.divider),
+                        // Anteprima del documento selezionato
+                        Expanded(
+                          child: _buildFilePreview(fileToPreview),
+                        ),
+                      ],
+                    );
                   } else {
                     // Nessun contenuto
                     return const Center(
@@ -737,6 +746,109 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
+    Widget _buildCompactFileSelector(List<DriveFile> files, DriveFile currentFile) {
+      return Container(
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: AppColors.surface,
+        child: Row(
+          children: [
+            // Icona e info file corrente
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Center(
+                child: Text(
+                  currentFile.fileTypeIcon,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    currentFile.name,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    currentFile.fileTypeDescription,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Selettore file (se ci sono più file)
+            if (files.length > 1) ...[
+              Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.outline),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: DropdownButton<DriveFile>(
+                  value: currentFile,
+                  items: files.map((file) => DropdownMenuItem(
+                    value: file,
+                    child: SizedBox(
+                      width: 200,
+                      child: Row(
+                        children: [
+                          Text(
+                            file.fileTypeIcon,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              file.name,
+                              style: const TextStyle(fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )).toList(),
+                  onChanged: (DriveFile? newFile) {
+                    if (newFile != null) {
+                      setState(() {
+                        _selectedFileForPreview = newFile;
+                      });
+                    }
+                  },
+                  underline: const SizedBox(),
+                  icon: const Icon(Icons.expand_more, size: 18),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                  ),
+                  dropdownColor: Colors.white,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     Widget _buildCompactFileList(List<DriveFile> files) {
       return Padding(
         padding: const EdgeInsets.all(16),
@@ -833,72 +945,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildFilePreview(DriveFile file) {
-      return Column(
-        children: [
-          // Header con info file
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      onPressed: () {
-                        setState(() {
-                          _selectedFileForPreview = null;
-                        });
-                      },
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            file.name,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${file.fileTypeDescription} ${file.size != null ? "• ${file.size}" : ""}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (file.webViewLink != null)
-                      IconButton(
-                        icon: const Icon(Icons.open_in_new, size: 18),
-                        onPressed: () {
-                          // Apri in browser (necessita url_launcher package)
-                          // launch(file.webViewLink!);
-                        },
-                        tooltip: 'Apri in Google Drive',
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          // Contenuto preview
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: _buildPreviewContent(file),
-            ),
-          ),
-        ],
+      return Container(
+        color: Colors.white,
+        child: _buildPreviewContent(file),
       );
     }
 
