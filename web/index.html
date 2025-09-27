@@ -27,6 +27,35 @@
   <!-- Google Sign In SDK -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
+  <!-- Suppress Google One Tap deprecation warnings -->
+  <script>
+    // Override console methods to filter out Google GSI warnings
+    if (typeof console !== 'undefined') {
+      const originalWarn = console.warn;
+      const originalLog = console.log;
+
+      console.warn = function(...args) {
+        const message = args.join(' ');
+        if (message.includes('GSI_LOGGER') ||
+            message.includes('Google One Tap') ||
+            message.includes('FedCM')) {
+          return; // Suppress these warnings
+        }
+        originalWarn.apply(console, args);
+      };
+
+      console.log = function(...args) {
+        const message = args.join(' ');
+        if (message.includes('[GSI_LOGGER]') ||
+            message.includes('Google One Tap') ||
+            message.includes('FedCM')) {
+          return; // Suppress these logs
+        }
+        originalLog.apply(console, args);
+      };
+    }
+  </script>
+
   <title>AI Assistant MVP</title>
   <link rel="manifest" href="manifest.json">
 </head>
