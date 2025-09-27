@@ -13,51 +13,35 @@ import 'google_drive_provider.dart';
 import 'google_auth_provider.dart';
 import '../../data/datasources/remote/claude_api_service.dart';
 
-// Mock GoogleSignInAccount for Supabase compatibility
-class MockGoogleSignInAccount extends GoogleSignInAccount {
-  @override
+// Simple data class to replace GoogleSignInAccount for Supabase compatibility
+class SupabaseUserAccount {
   final String email;
-
-  @override
   final String id;
-
-  @override
   final String? displayName;
-
-  @override
   final String? photoUrl;
 
-  MockGoogleSignInAccount({
+  SupabaseUserAccount({
     required this.email,
     required this.id,
     this.displayName,
     this.photoUrl,
   });
 
-  @override
   Future<GoogleSignInAuthentication> get authentication async {
     // Return empty tokens since we're using Supabase auth
-    return MockGoogleSignInAuthentication();
+    return SupabaseAuthentication();
   }
 
-  @override
   Future<void> clearAuthCache() async {}
 
-  @override
   Future<Map<String, String>> get authHeaders async => {};
 
-  @override
   String get serverAuthCode => '';
 }
 
-class MockGoogleSignInAuthentication extends GoogleSignInAuthentication {
-  @override
+class SupabaseAuthentication {
   String? get accessToken => null;
-
-  @override
   String? get idToken => null;
-
-  @override
   String? get serverAuthCode => null;
 }
 
@@ -118,8 +102,8 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
     final currentUser = SupabaseService.client.auth.currentUser;
     if (currentUser != null) {
       state = AppAuthState.authenticated(
-        // Create a mock GoogleSignInAccount for compatibility
-        _createMockGoogleAccount(currentUser),
+        // Create a SupabaseUserAccount for compatibility
+        _createSupabaseUserAccount(currentUser),
         {'email': currentUser.email, 'name': currentUser.userMetadata?['full_name']},
       );
     } else {
@@ -136,7 +120,7 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
           final user = authState.session!.user;
           print('✅ Supabase user signed in: ${user.email}');
           state = AppAuthState.authenticated(
-            _createMockGoogleAccount(user),
+            _createSupabaseUserAccount(user),
             {'email': user.email, 'name': user.userMetadata?['full_name']},
           );
         }
@@ -150,9 +134,9 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
     }
   }
 
-  // Create a mock GoogleSignInAccount for compatibility
-  MockGoogleSignInAccount _createMockGoogleAccount(User user) {
-    return MockGoogleSignInAccount(
+  // Create a SupabaseUserAccount from Supabase User
+  SupabaseUserAccount _createSupabaseUserAccount(User user) {
+    return SupabaseUserAccount(
       email: user.email ?? '',
       id: user.id,
       displayName: user.userMetadata?['full_name'] ?? user.email ?? '',
@@ -435,7 +419,7 @@ sealed class AppAuthState {
   const AppAuthState();
   
   const factory AppAuthState.loading() = AppAuthStateLoading;
-  const factory AppAuthState.authenticated(GoogleSignInAccount account, Map<String, String?> userInfo) = AppAuthStateAuthenticated;
+  const factory AppAuthState.authenticated(SupabaseUserAccount account, Map<String, String?> userInfo) = AppAuthStateAuthenticated;
   const factory AppAuthState.unauthenticated() = AppAuthStateUnauthenticated;
   const factory AppAuthState.error(String message) = AppAuthStateError;
 }
@@ -445,7 +429,7 @@ class AppAuthStateLoading extends AppAuthState {
 }
 
 class AppAuthStateAuthenticated extends AppAuthState {
-  final GoogleSignInAccount account;
+  final SupabaseUserAccount account;
   final Map<String, String?> userInfo;
   const AppAuthStateAuthenticated(this.account, this.userInfo);
 }

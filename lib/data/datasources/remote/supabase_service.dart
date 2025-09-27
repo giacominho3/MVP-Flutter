@@ -33,7 +33,6 @@ class SupabaseService {
   static Future<void> signOut() async {
     try {
       await client.auth.signOut();
-      _currentUserId = null;
       if (kDebugMode) {
         print('✅ Supabase sign out successful');
       }
