@@ -171,14 +171,17 @@ class GoogleDriveService {
       if (kDebugMode) {
         print('🔧 Inizializzazione Google Drive Service...');
       }
-      
+
+      // Prima inizializza il servizio di autenticazione Google
+      await _authService.initialize();
+
       final client = await _authService.getAuthenticatedClient();
       if (client == null) {
         throw Exception('Client non autenticato');
       }
-      
+
       _driveApi = drive.DriveApi(client);
-      
+
       if (kDebugMode) {
         print('✅ Google Drive Service inizializzato');
       }

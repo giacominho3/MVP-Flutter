@@ -2,11 +2,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
-import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/google_config.dart';
-import 'google_token_service.dart';
 
 class GoogleAuthService {
   // Singleton pattern
@@ -200,36 +197,58 @@ class GoogleAuthService {
 /// Ottieni un client HTTP autenticato per le API Google
   Future<auth.AuthClient?> getAuthenticatedClient() async {
     try {
-      // Prima prova a ottenere il token da Supabase
       if (kDebugMode) {
-        print('🔍 Tentativo di ottenere Google token da Supabase...');
+        print('🔍 Ottenimento client autenticato Google...');
       }
-      
-      // Importa il servizio (aggiungi import in alto)
-      final GoogleTokenService tokenService = GoogleTokenService();
-      final token = await GoogleTokenService.getGoogleToken();
-      
-      if (token == null) {
+
+      // Verifica se abbiamo un account connesso
+      if (_currentAccount == null) {
         if (kDebugMode) {
-          print('❌ Nessun token Google disponibile');
-          print('📝 Potrebbe essere necessario ri-autenticarsi con gli scope di Drive');
+          print('❌ Nessun account Google connesso');
+        }
+
+        // Tenta di effettuare login silenzioso
+        await _checkExistingSignIn();
+
+        if (_currentAccount == null) {
+          if (kDebugMode) {
+            print('🔐 Effettuo login Google...');
+          }
+          // Effettua login se necessario
+          _currentAccount = await signIn();
+        }
+      }
+
+      if (_currentAccount == null) {
+        if (kDebugMode) {
+          print('❌ Login Google fallito o annullato');
         }
         return null;
       }
-      
+
+      // Ottieni l'authentication token dall'account Google
+      final authentication = await _currentAccount!.authentication;
+
+      if (authentication.accessToken == null) {
+        if (kDebugMode) {
+          print('❌ Access token non disponibile');
+        }
+        return null;
+      }
+
       if (kDebugMode) {
         print('✅ Token Google ottenuto con successo');
-        print('🔑 Token: ${token.substring(0, 20)}...');
+        print('🔑 Token: ${authentication.accessToken!.substring(0, 20)}...');
       }
-      
+
       // Crea un client HTTP con il token
       final client = _GoogleAuthClient(
-        accessToken: token,
-        idToken: null,
+        accessToken: authentication.accessToken!,
+        idToken: authentication.idToken,
       );
-      
+
       return client;
-      
+
     } catch (e) {
       if (kDebugMode) {
         print('❌ Errore ottenendo client autenticato: $e');
