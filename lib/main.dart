@@ -15,6 +15,8 @@ void _initializeDesktopFeatures() {
 }
 
 Future<void> main() async {
+  // INIZIALIZZA SUPABASE - QUESTO MANCAVA!
+  await _initializeSupabase();
   WidgetsFlutterBinding.ensureInitialized();
   
   // NON usare Platform o dart:io direttamente!
@@ -24,8 +26,6 @@ Future<void> main() async {
     _initializeDesktopFeatures();
   }
   
-  // INIZIALIZZA SUPABASE - QUESTO MANCAVA!
-  await _initializeSupabase();
   
   // Inizializza Hive per caching locale
   await _initializeHive();
