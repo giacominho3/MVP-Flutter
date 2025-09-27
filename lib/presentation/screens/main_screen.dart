@@ -220,10 +220,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: switch (googleAuthState) {
-                          GoogleAuthAuthenticated() => AppColors.success.withValues(alpha: 0.1),
-                          GoogleAuthLoading() => AppColors.warning.withValues(alpha: 0.1),
-                          GoogleAuthError() => AppColors.error.withValues(alpha: 0.1),
-                          _ => AppColors.textTertiary.withValues(alpha: 0.1),
+                          GoogleAuthAuthenticated() => AppColors.success.withOpacity(0.1),
+                          GoogleAuthLoading() => AppColors.warning.withOpacity(0.1),
+                          GoogleAuthError() => AppColors.error.withOpacity(0.1),
+                          _ => AppColors.textTertiary.withOpacity(0.1),
                         },
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
