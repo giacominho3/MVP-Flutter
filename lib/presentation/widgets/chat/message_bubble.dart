@@ -137,7 +137,7 @@ class MessageBubble extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            'Typing...',
+            'Sta digitando...',
             style: TextStyle(
               fontSize: 12,
               color: message.isUser ? Colors.white70 : AppColors.textSecondary,

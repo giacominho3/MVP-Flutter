@@ -250,8 +250,15 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
         content: content, // Salva solo il messaggio originale nella UI
         sessionId: state!.id,
       );
-      
+
       state = state!.addMessage(userMessage);
+
+      // Aggiorna immediatamente il messaggio utente a "sent"
+      final sentUserMessage = userMessage.copyWith(status: MessageStatus.sent);
+      final updatedMessages = state!.messages.map((m) =>
+          m.id == userMessage.id ? sentUserMessage : m).toList();
+
+      state = state!.copyWith(messages: updatedMessages);
       
       // Crea messaggio assistente temporaneo con status "sending"
       final tempAssistantMessage = Message(
