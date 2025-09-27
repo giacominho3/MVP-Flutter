@@ -65,37 +65,36 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
     _updateAuthState(googleAuthState);
   }
   
-  void _updateAuthState(GoogleAuthState googleAuthState) {
-    print('🔄 Updating auth state from GoogleAuthState: ${googleAuthState.runtimeType}');
-
+  void _updateAuthState(GoogleAuthState googleAuthState) async {
     switch (googleAuthState) {
       case GoogleAuthInitial():
-        print('📍 Setting AppAuthState to loading (GoogleAuthInitial)');
         state = const AppAuthState.loading();
         break;
       case GoogleAuthLoading():
-        print('📍 Setting AppAuthState to loading (GoogleAuthLoading)');
         state = const AppAuthState.loading();
         break;
       case GoogleAuthAuthenticated(:final account, :final userInfo):
-        print('✅ Setting AppAuthState to authenticated for user: ${account.email}');
+        print('✅ User authenticated: ${account.email}');
 
-        // Imposta il mock user ID per Supabase usando l'email Google
+        // Autentica con Supabase usando i token Google
         try {
-          SupabaseService.setMockUserId(account.email);
-          print('✅ Supabase mock user ID set for: ${account.email}');
+          final auth = await account.authentication;
+          if (auth.idToken != null && auth.accessToken != null) {
+            await SupabaseService.signInWithGoogle(auth.idToken!, auth.accessToken!);
+            print('✅ Supabase authentication successful');
+          } else {
+            print('⚠️ Warning: Missing Google tokens for Supabase auth');
+          }
         } catch (e) {
-          print('⚠️ Warning: Failed to set Supabase mock user ID: $e');
+          print('⚠️ Supabase authentication failed: $e');
         }
 
         state = AppAuthState.authenticated(account, userInfo);
         break;
       case GoogleAuthUnauthenticated():
-        print('❌ Setting AppAuthState to unauthenticated');
         state = const AppAuthState.unauthenticated();
         break;
       case GoogleAuthError(:final message):
-        print('💥 Setting AppAuthState to error: $message');
         state = AppAuthState.error(message);
         break;
     }
@@ -103,7 +102,15 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
   
   Future<void> signOut() async {
     try {
+      // Sign out from both Google and Supabase
       await _ref.read(googleAuthStateProvider.notifier).signOut();
+
+      try {
+        await SupabaseService.signOut();
+      } catch (e) {
+        print('⚠️ Supabase sign out failed: $e');
+      }
+
       state = const AppAuthState.unauthenticated();
     } catch (e) {
       state = AppAuthState.error(e.toString());
@@ -118,15 +125,9 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   
   Future<void> createNewSession({String? title}) async {
     final authState = _ref.read(authStateProvider);
-    final googleAuthState = _ref.read(googleAuthStateProvider);
-
-    print('🔍 Debug auth - AppAuthState: ${authState.runtimeType}');
-    print('🔍 Debug auth - GoogleAuthState: ${googleAuthState.runtimeType}');
 
     if (authState is! AppAuthStateAuthenticated) {
-      print('❌ User not authenticated - AppAuthState: $authState');
-      print('❌ Google auth state: $googleAuthState');
-      throw Exception('User not authenticated - AppAuthState: ${authState.runtimeType}, GoogleAuthState: ${googleAuthState.runtimeType}');
+      throw Exception('User not authenticated');
     }
     
     try {
