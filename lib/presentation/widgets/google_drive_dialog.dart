@@ -29,7 +29,6 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
   @override
   void initState() {
     super.initState();
-    // Inizializza Google Drive quando il dialog si apre
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(googleDriveStateProvider.notifier).initialize();
     });

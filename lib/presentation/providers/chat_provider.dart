@@ -3,17 +3,16 @@ import 'dart:async';
 
 import 'package:ai_assistant_mvp/data/datasources/remote/google_drive_content_extractor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../data/datasources/remote/supabase_service.dart';
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
-
 import 'google_drive_provider.dart';
+import 'google_auth_provider.dart';
 
-// Provider per lo stato di autenticazione
+// Provider per lo stato di autenticazione principale - ora usa Google Auth
 final authStateProvider = StateNotifierProvider<AuthStateNotifier, AppAuthState>((ref) {
-  return AuthStateNotifier();
+  return AuthStateNotifier(ref);
 });
 
 // Provider per la sessione chat corrente
@@ -26,7 +25,7 @@ final messageStateProvider = StateNotifierProvider<MessageStateNotifier, AppMess
   return MessageStateNotifier();
 });
 
-// Provider per le sessioni chat dell'utente
+// Provider per le sessioni chat dell'utente (ora usando storage locale o Google Drive)
 final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
   final authState = ref.watch(authStateProvider);
   if (authState is! AppAuthStateAuthenticated) {
@@ -34,98 +33,55 @@ final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
   }
   
   try {
-    return await SupabaseService.getChatSessions();
+    // TODO: Implementare storage locale delle sessioni chat
+    // Per ora ritorniamo lista vuota, implementeremo storage locale
+    return [];
   } catch (e) {
     throw Exception('Errore nel caricamento delle chat: $e');
   }
 });
 
-// Provider per l'usage dell'utente
-final userUsageProvider = FutureProvider<Map<String, int>>((ref) async {
-  final authState = ref.watch(authStateProvider);
-  if (authState is! AppAuthStateAuthenticated) {
-    return {'messages': 0, 'tokens': 0, 'cost_cents': 0};
-  }
-  
-  try {
-    return await SupabaseService.getUserUsage();
-  } catch (e) {
-    return {'messages': 0, 'tokens': 0, 'cost_cents': 0};
-  }
-});
-
 class AuthStateNotifier extends StateNotifier<AppAuthState> {
-  AuthStateNotifier() : super(const AppAuthState.loading()) {
+  final Ref _ref;
+  
+  AuthStateNotifier(this._ref) : super(const AppAuthState.loading()) {
     _init();
   }
   
   void _init() {
-    // Controlla se l'utente è già loggato
-    final user = SupabaseService.currentUser;
-    if (user != null) {
-      state = AppAuthState.authenticated(user);
-    } else {
-      state = const AppAuthState.unauthenticated();
-    }
-    
-    // Ascolta i cambiamenti di auth
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final user = data.session?.user;
-      if (user != null) {
-        state = AppAuthState.authenticated(user);
-      } else {
-        state = const AppAuthState.unauthenticated();
-      }
+    // Ascolta i cambiamenti dello stato di Google Auth
+    _ref.listen(googleAuthStateProvider, (previous, next) {
+      _updateAuthState(next);
     });
-  }
-  
-  Future<void> signIn(String email, String password) async {
-    state = const AppAuthState.loading();
-    try {
-      final response = await SupabaseService.signInWithEmail(email, password);
-      if (response.user != null) {
-        state = AppAuthState.authenticated(response.user!);
-      } else {
-        state = const AppAuthState.error('Login failed');
-      }
-    } catch (e) {
-      state = AppAuthState.error(_parseError(e));
-    }
-  }
-  
-  Future<void> signUp(String email, String password) async {
-    state = const AppAuthState.loading();
-    try {
-      final response = await SupabaseService.signUp(email, password);
-      if (response.user != null) {
-        state = AppAuthState.authenticated(response.user!);
-      } else {
-        state = const AppAuthState.error('Registration failed');
-      }
-    } catch (e) {
-      state = AppAuthState.error(_parseError(e));
-    }
-  }
-  
-  String _parseError(dynamic error) {
-    final errorStr = error.toString().toLowerCase();
     
-    if (errorStr.contains('invalid_credentials')) {
-      return 'Email o password non corretti';
-    }
-    if (errorStr.contains('email_not_confirmed')) {
-      return 'Conferma la tua email prima di accedere';
-    }
-    if (errorStr.contains('rate_limit')) {
-      return 'Troppi tentativi. Riprova tra qualche minuto';
-    }
-    
-    return 'Errore: ${error.toString()}';
+    // Imposta stato iniziale
+    final googleAuthState = _ref.read(googleAuthStateProvider);
+    _updateAuthState(googleAuthState);
   }
- 
+  
+  void _updateAuthState(GoogleAuthState googleAuthState) {
+    switch (googleAuthState) {
+      case GoogleAuthInitial():
+        state = const AppAuthState.loading();
+        break;
+      case GoogleAuthLoading():
+        state = const AppAuthState.loading();
+        break;
+      case GoogleAuthAuthenticated(:final account, :final userInfo):
+        state = AppAuthState.authenticated(account, userInfo);
+        break;
+      case GoogleAuthUnauthenticated():
+        state = const AppAuthState.unauthenticated();
+        break;
+      case GoogleAuthError(:final message):
+        state = AppAuthState.error(message);
+        break;
+    }
+  }
+  
   Future<void> signOut() async {
     try {
-      await SupabaseService.signOut();
+      await _ref.read(googleAuthStateProvider.notifier).signOut();
       state = const AppAuthState.unauthenticated();
     } catch (e) {
       state = AppAuthState.error(e.toString());
@@ -145,15 +101,13 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
     }
     
     try {
-      final session = await SupabaseService.createChatSession(
-        title ?? 'Nuova Chat ${_formatDate(DateTime.now())}',
-      );
-      
+      // Crea sessione locale (non più Supabase)
+      final session = ChatSession.create(title: title);
       state = session;
       
-      print('✅ Sessione creata: ${session.id}');
+      print('✅ Sessione locale creata: ${session.id}');
       
-      // Aggiorna la lista delle sessioni
+      // Invalida la lista delle sessioni per aggiornare la UI
       _ref.invalidate(chatSessionsProvider);
     } catch (e) {
       print('❌ Errore nella creazione della chat: $e');
@@ -163,9 +117,8 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
 
   Future<void> loadSession(ChatSession session) async {
     try {
-      // Carica i messaggi della sessione
-      final messages = await SupabaseService.getMessages(session.id);
-      state = session.copyWith(messages: messages);
+      // Per ora carica la sessione direttamente (storage locale da implementare)
+      state = session;
     } catch (e) {
       _ref.read(messageStateProvider.notifier).setError('Errore nel caricamento dei messaggi: $e');
     }
@@ -182,21 +135,18 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
         await createNewSession(title: content.substring(0, content.length > 50 ? 50 : content.length));
       }
       
-      // === NUOVO: Prepara il contesto dai file Google Drive ===
+      // === Prepara il contesto dai file Google Drive ===
       final selectedDriveFiles = _ref.read(selectedDriveFilesProvider);
       String fileContext = '';
       
       if (selectedDriveFiles.isNotEmpty) {
         print('📎 Preparazione contesto da ${selectedDriveFiles.length} file...');
         
-        // Usa l'estrattore per ottenere il contenuto dei file
         final extractor = GoogleDriveContentExtractor();
         
         try {
-          // Estrai il contenuto dai file (dove possibile)
           fileContext = await extractor.extractMultipleFiles(selectedDriveFiles);
         } catch (e) {
-          
           // Fallback: usa solo i riferimenti se l'estrazione fallisce
           fileContext = '\n\n--- FILE DI RIFERIMENTO ---\n';
           for (final file in selectedDriveFiles) {
@@ -210,25 +160,23 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       String fullMessage = content;
       if (fileContext.isNotEmpty) {
         fullMessage = """
-  $fileContext
+$fileContext
 
-  DOMANDA UTENTE: $content
+DOMANDA UTENTE: $content
 
-  Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i file contengono informazioni rilevanti, citale nella risposta.
-  """;
+Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i file contengono informazioni rilevanti, citale nella risposta.
+""";
         
         print('📝 Messaggio con contesto preparato (${fullMessage.length} caratteri)');
       }
       
-      // Salva prima il messaggio utente nel DB (mostra solo il messaggio originale)
-      final savedUserMessage = await SupabaseService.saveMessage(
-        content: content, // Salviamo solo il messaggio originale nel DB
-        isUser: true,
+      // Aggiungi il messaggio utente alla sessione
+      final userMessage = Message.user(
+        content: content, // Salva solo il messaggio originale nella UI
         sessionId: state!.id,
       );
       
-      // Aggiungi il messaggio utente salvato alla UI
-      state = state!.addMessage(savedUserMessage);
+      state = state!.addMessage(userMessage);
       
       // Crea messaggio assistente temporaneo con status "sending"
       final tempAssistantMessage = Message(
@@ -243,29 +191,21 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       // Aggiungi messaggio assistente temporaneo
       state = state!.addMessage(tempAssistantMessage);
       
-      // Storia da inviare a Claude (escludi il messaggio temporaneo)
-      final historyForClaude = state!.messages
-          .where((m) => m.id != tempAssistantMessage.id && m != savedUserMessage)
-          .toList();
-      
-      // CHIAMA LA EDGE FUNCTION DI SUPABASE con il messaggio completo!
-      final response = await SupabaseService.sendToClaude(
-        message: fullMessage, // Usa il messaggio con contesto dei file
-        sessionId: state!.id,
-        history: historyForClaude,
-      );
-      
-      // Il messaggio dell'assistente è già stato salvato nel DB da sendToClaude
-      // Ora dobbiamo solo aggiornare la UI
+      // TODO: Sostituire con chiamata API Claude diretta
+      // Per ora simula una risposta
+      await Future.delayed(const Duration(seconds: 2));
       
       // Rimuovi il messaggio temporaneo
       final messagesWithoutTemp = state!.messages
           .where((m) => m.id != tempAssistantMessage.id)
           .toList();
       
+      // Simula risposta dell'assistente
+      final assistantResponse = _generateMockResponse(content, selectedDriveFiles);
+      
       // Crea il messaggio assistente finale
       final assistantMessage = Message.assistant(
-        content: response['content'] ?? '',
+        content: assistantResponse,
         sessionId: state!.id,
       );
       
@@ -280,12 +220,9 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       if (selectedDriveFiles.isNotEmpty) {
         print('📎 File nel contesto: ${selectedDriveFiles.map((f) => f.name).join(', ')}');
       }
-      print('💰 Tokens usati: ${response['tokens_used']}, Costo: ${response['cost_cents']} cents');
-      print('📨 Totale messaggi nella chat: ${state!.messages.length}');
       
-      // Aggiorna la lista delle sessioni e l'usage
+      // Aggiorna la lista delle sessioni
       _ref.invalidate(chatSessionsProvider);
-      _ref.invalidate(userUsageProvider);
       
     } catch (e) {
       print('❌ Errore nell\'invio: $e');
@@ -294,7 +231,6 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       if (state != null && state!.messages.isNotEmpty) {
         final lastMessage = state!.messages.last;
         if (lastMessage.status == MessageStatus.sending && !lastMessage.isUser) {
-          // Rimuovi il messaggio "typing" temporaneo
           final messagesWithoutTemp = state!.messages.where((m) => m != lastMessage).toList();
           state = state!.copyWith(messages: messagesWithoutTemp);
         }
@@ -304,11 +240,31 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
     }
   }
 
+  // Mock response per test (da sostituire con API Claude)
+  String _generateMockResponse(String userMessage, List<dynamic> selectedFiles) {
+    if (selectedFiles.isNotEmpty) {
+      return '''Grazie per il tuo messaggio: "$userMessage"
+
+Ho analizzato ${selectedFiles.length} file dal tuo Google Drive:
+${selectedFiles.map((f) => '• ${f.name}').join('\n')}
+
+[Questa è una risposta di test. Presto sarà sostituita con l'integrazione Claude API]
+
+Come posso aiutarti ulteriormente con questi documenti?''';
+    } else {
+      return '''Grazie per il tuo messaggio: "$userMessage"
+
+[Questa è una risposta di test. Presto sarà sostituita con l'integrazione Claude API]
+
+Come posso aiutarti?''';
+    }
+  }
+
   Future<void> deleteCurrentSession() async {
     if (state == null) return;
     
     try {
-      await SupabaseService.deleteChatSession(state!.id);
+      // TODO: Implementare eliminazione da storage locale
       state = null;
       
       // Aggiorna la lista delle sessioni
@@ -321,10 +277,6 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   void clearSession() {
     state = null;
   }
-  
-  static String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
 }
 
 class MessageStateNotifier extends StateNotifier<AppMessageState> {
@@ -335,12 +287,12 @@ class MessageStateNotifier extends StateNotifier<AppMessageState> {
   void setError(String message) => state = AppMessageState.error(message);
 }
 
-// Stati per l'autenticazione
+// Stati per l'autenticazione - ora basati su Google Auth
 sealed class AppAuthState {
   const AppAuthState();
   
   const factory AppAuthState.loading() = AppAuthStateLoading;
-  const factory AppAuthState.authenticated(User user) = AppAuthStateAuthenticated;
+  const factory AppAuthState.authenticated(GoogleSignInAccount account, Map<String, String?> userInfo) = AppAuthStateAuthenticated;
   const factory AppAuthState.unauthenticated() = AppAuthStateUnauthenticated;
   const factory AppAuthState.error(String message) = AppAuthStateError;
 }
@@ -350,8 +302,9 @@ class AppAuthStateLoading extends AppAuthState {
 }
 
 class AppAuthStateAuthenticated extends AppAuthState {
-  final User user;
-  const AppAuthStateAuthenticated(this.user);
+  final GoogleSignInAccount account;
+  final Map<String, String?> userInfo;
+  const AppAuthStateAuthenticated(this.account, this.userInfo);
 }
 
 class AppAuthStateUnauthenticated extends AppAuthState {
@@ -363,7 +316,7 @@ class AppAuthStateError extends AppAuthState {
   const AppAuthStateError(this.message);
 }
 
-// Stati per i messaggi
+// Stati per i messaggi (rimangono invariati)
 sealed class AppMessageState {
   const AppMessageState();
   

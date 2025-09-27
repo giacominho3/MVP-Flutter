@@ -1376,41 +1376,41 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildGoogleConnectionSection() {
-  final googleAuthState = ref.watch(googleAuthStateProvider);
-  
-  return Container(
-    margin: const EdgeInsets.only(bottom: 8),  // Uniformato agli altri container
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFAFBFC),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(
-        color: AppColors.outline,
-        width: 1,
+    final googleAuthState = ref.watch(googleAuthStateProvider);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFBFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.outline,
+          width: 1,
+        ),
       ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // Logo Google SVG
-            SvgPicture.asset(
-              'assets/icons/google_logo.svg',
-              width: 16,
-              height: 16,
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Google Workspace',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Logo Google SVG
+              SvgPicture.asset(
+                'assets/icons/google_logo.svg',
+                width: 16,
+                height: 16,
               ),
-            ),
-            const Spacer(),
-            if (googleAuthState is GoogleAuthAuthenticated)
+              const SizedBox(width: 8),
+              const Text(
+                'Google Workspace',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              // Sempre connesso perché è il nostro sistema di auth principale
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
@@ -1426,82 +1426,46 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ),
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        // Contenuto basato sullo stato
-        switch (googleAuthState) {
-          GoogleAuthLoading() => const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          GoogleAuthAuthenticated(:final userInfo) => Column(
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Mostra sempre info utente e pulsante Drive
+          if (googleAuthState is GoogleAuthAuthenticated)
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  userInfo['email'] ?? 'Email non disponibile',
+                  googleAuthState.userInfo['email'] ?? 'Email non disponibile',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () {
-                          _showGoogleDriveSearch();
-                        },
-                        icon: const Icon(Icons.search, size: 14),
-                        label: const Text(
-                          'Cerca in Drive',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          minimumSize: const Size(0, 30),
-                        ),
-                      ),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _showGoogleDriveSearch();
+                    },
+                    icon: const Icon(Icons.search, size: 16),
+                    label: const Text(
+                      'Cerca file in Drive',
+                      style: TextStyle(fontSize: 12),
                     ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      onPressed: () {
-                        _showDisconnectDialog();
-                      },
-                      icon: const Icon(Icons.logout, size: 16),
-                      tooltip: 'Disconnetti',
-                      padding: const EdgeInsets.all(4),
-                      constraints: const BoxConstraints(),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: const Size(0, 36),
                     ),
-                  ],
-                ),
-              ],
-            ),
-          GoogleAuthError(:final message) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.error,
                   ),
                 ),
-                const SizedBox(height: 8),
-                _buildGoogleConnectButton(),
               ],
             ),
-          _ => _buildGoogleConnectButton(),
-        }
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _buildGoogleConnectButton() {
     return SizedBox(
@@ -1545,38 +1509,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  void _showDisconnectDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Disconnetti Google'),
-        content: const Text(
-          'Vuoi disconnettere il tuo account Google?\n'
-          'Non potrai più accedere ai tuoi file Drive dalla chat.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annulla'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ref.read(googleAuthStateProvider.notifier).disconnect();
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Disconnetti'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showGoogleDriveSearch() async {
     final selectedFiles = await GoogleDriveDialog.show(context);
     
     if (selectedFiles != null && selectedFiles.isNotEmpty) {
-      // I file sono stati selezionati e aggiunti al provider
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

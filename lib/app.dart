@@ -12,7 +12,7 @@ class AIAssistantApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'AI Assistant MVP',
+      title: 'Virgo AI Assistant',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       debugShowCheckedModeBanner: false,
@@ -30,7 +30,16 @@ class AuthWrapper extends ConsumerWidget {
 
     return switch (authState) {
       AppAuthStateLoading() => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Inizializzazione...'),
+              ],
+            ),
+          ),
         ),
       AppAuthStateAuthenticated() => const MainScreen(),
       AppAuthStateUnauthenticated() => const LoginScreen(),

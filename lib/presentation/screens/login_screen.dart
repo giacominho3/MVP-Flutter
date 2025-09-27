@@ -1,8 +1,10 @@
+// lib/presentation/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/colors.dart';
-import '../providers/chat_provider.dart';
+import '../providers/google_auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -12,22 +14,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _isSignUp = false;
-  bool _obscurePassword = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
+    final googleAuthState = ref.watch(googleAuthStateProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -36,194 +25,161 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           padding: const EdgeInsets.all(32),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Logo Virgo
-                  Center(
-                    child: Image.asset(
-                      'assets/images/logo_virgo_extended.png',
-                      width: 180,
-                      height: 72,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  const SizedBox(height: 8),
-                  
-                  Text(
-                    _isSignUp ? 'Crea il tuo account' : 'Accedi al tuo account',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  const SizedBox(height: 48),
-                  
-                  // Email Field
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    style: const TextStyle(
-                      color: Color.fromARGB(255, 80, 80, 80),
-                      fontSize: 14,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(
-                        Icons.email_outlined,
-                        color: Color.fromARGB(255, 80, 80, 80),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Inserisci la tua email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Inserisci una email valida';
-                      }
-                      return null;
-                    },
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _handleSubmit(),
-                    style: const TextStyle(
-                      color: Color.fromARGB(255, 80, 80, 80), // <-- COLORE DEL TESTO CHE DIGITI
-                      fontSize: 14,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(
-                        Icons.lock_outlined,
-                        color: Color.fromARGB(255, 80, 80, 80), // Colore icona
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                          color: const Color.fromARGB(255, 80, 80, 80), // Colore icona
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Logo Virgo
+                Center(
+                  child: Image.asset(
+                    'assets/images/logo_virgo_extended.png',
+                    width: 200,
+                    height: 80,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        child: const Text(
+                          'VIRGO',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Inserisci la password';
-                      }
-                      if (_isSignUp && value.length < 6) {
-                        return 'La password deve essere di almeno 6 caratteri';
-                      }
-                      return null;
+                      );
                     },
                   ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Submit Button
-                  ElevatedButton(
-                    onPressed: authState is AppAuthStateLoading ? null : _handleSubmit,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.surface
-                    ),
-                    child: authState is AppAuthStateLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text(_isSignUp ? 'Registrati' : 'Accedi'),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                const Text(
+                  'Accedi con il tuo account Google',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Toggle Sign Up/Sign In
-                  TextButton(
-                    onPressed: authState is AppAuthStateLoading ? null : () {
-                      setState(() {
-                        _isSignUp = !_isSignUp;
-                        // Clear validation errors when switching
-                        _formKey.currentState?.reset();
-                      });
-                    },
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: _isSignUp 
-                                ? 'Hai già un account? ' 
-                                : 'Non hai un account? ',
-                            style: const TextStyle(color: AppColors.textSecondary),
-                          ),
-                          TextSpan(
-                            text: _isSignUp ? 'Accedi' : 'Registrati',
-                            style: const TextStyle(
-                              color: Color.fromARGB(255, 0, 0, 0),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                const SizedBox(height: 12),
+                
+                Text(
+                  'Connetti il tuo Google Workspace per iniziare a usare Virgo AI',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.textSecondary,
                   ),
-                  
-                  // Error Message
-                  if (authState is AppAuthStateError) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.error),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              authState.message,
-                              style: const TextStyle(
-                                color: AppColors.error,
-                                fontSize: 13,
+                  textAlign: TextAlign.center,
+                ),
+                
+                const SizedBox(height: 48),
+                
+                // Google Sign In Button
+                _buildGoogleSignInButton(googleAuthState),
+                
+                // Error Message
+                if (googleAuthState is GoogleAuthError) ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.error, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Errore di accesso',
+                                style: TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              Text(
+                                googleAuthState.message,
+                                style: const TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                  
-                  const SizedBox(height: 48),
-                  
-                  // Footer
-                  Text(
-                    '© 2025 Virgo AI Assistant',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textTertiary,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
-              ),
+                
+                const SizedBox(height: 48),
+                
+                // Info Security
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.outline),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.security,
+                            color: AppColors.success,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Sicurezza e Privacy',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '• I tuoi file rimangono sempre in Google Drive\n'
+                        '• Virgo accede solo ai file che selezioni\n'
+                        '• Nessun dato viene memorizzato sui nostri server\n'
+                        '• Puoi disconnettere l\'accesso in qualsiasi momento',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Footer
+                Text(
+                  '© 2025 Virgo AI Assistant',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textTertiary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
         ),
@@ -231,19 +187,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _handleSubmit() {
-    if (!_formKey.currentState!.validate()) return;
-
-    // Rimuovi focus dalla keyboard
-    FocusScope.of(context).unfocus();
-
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-
-    if (_isSignUp) {
-      ref.read(authStateProvider.notifier).signUp(email, password);
-    } else {
-      ref.read(authStateProvider.notifier).signIn(email, password);
-    }
+  Widget _buildGoogleSignInButton(GoogleAuthState state) {
+    final isLoading = state is GoogleAuthLoading;
+    
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: isLoading ? null : () async {
+          await ref.read(googleAuthStateProvider.notifier).signIn();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF3C4043),
+          elevation: 0,
+          side: const BorderSide(color: Color(0xFFDADCE0), width: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+        ),
+        child: isLoading
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Connessione in corso...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.25,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.asset(
+                    'assets/icons/google_logo.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Continua con Google',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.25,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
   }
 }
