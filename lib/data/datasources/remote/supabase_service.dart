@@ -14,9 +14,21 @@ class SupabaseService {
         print('🔐 Starting Supabase Google OAuth...');
       }
 
+      // Get the correct redirect URL based on platform
+      String? redirectUrl;
+      if (kIsWeb) {
+        // For web, use the current origin
+        // In production, this will be your Netlify URL
+        // In development, this will be localhost
+        redirectUrl = null; // Let Supabase handle it
+      } else {
+        // For mobile apps
+        redirectUrl = 'io.supabase.flutterquickstart://login-callback/';
+      }
+
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
+        redirectTo: redirectUrl,
       );
 
       if (kDebugMode) {
