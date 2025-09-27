@@ -10,6 +10,7 @@ import '../../domain/entities/message.dart';
 import '../../data/datasources/remote/supabase_service.dart';
 import 'google_drive_provider.dart';
 import 'google_auth_provider.dart';
+import '../../data/datasources/remote/claude_api_service.dart';
 
 // Provider per lo stato di autenticazione principale - ora usa Google Auth
 final authStateProvider = StateNotifierProvider<AuthStateNotifier, AppAuthState>((ref) {
@@ -40,6 +41,10 @@ final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
   } catch (e) {
     throw Exception('Errore nel caricamento delle chat: $e');
   }
+});
+
+final claudeApiServiceProvider = Provider<ClaudeApiService>((ref) {
+  return ClaudeApiService();
 });
 
 class AuthStateNotifier extends StateNotifier<AppAuthState> {
@@ -192,7 +197,7 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
       // Aggiungi messaggio assistente temporaneo
       state = state!.addMessage(tempAssistantMessage);
       
-      // === CHIAMATA API CLAUDE REALE ===
+  // === CHIAMATA API CLAUDE REALE ===
       try {
         print('🤖 Invio messaggio a Claude...');
         
@@ -201,12 +206,27 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
             .where((m) => m.id != tempAssistantMessage.id && m.status != MessageStatus.sending)
             .toList();
         
-        // Chiama l'API Claude tramite Supabase Edge Function
-        final response = await SupabaseService.sendToClaude(
-          message: fullMessage, // Usa il messaggio con contesto se presente
-          history: history,
-          sessionId: state!.id,
-        );
+        // Ottieni il servizio Claude
+        final claudeService = _ref.read(claudeApiServiceProvider);
+        
+        Map<String, dynamic> response;
+        
+        // Prima prova con Claude API diretta
+        if (claudeService.hasApiKey) {
+          print('✅ Uso Claude API diretta');
+          response = await claudeService.sendMessage(
+            message: fullMessage,
+            history: history,
+          );
+        } else {
+          // Fallback su Supabase Edge Function
+          print('⚠️ Claude API key non trovata, uso Supabase Edge Function');
+          response = await SupabaseService.sendToClaude(
+            message: fullMessage,
+            history: history,
+            sessionId: state!.id,
+          );
+        }
         
         print('✅ Risposta ricevuta da Claude');
         
@@ -237,9 +257,6 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
         if (response['tokens_used'] != null) {
           print('🎯 Token utilizzati: ${response['tokens_used']}');
         }
-        if (response['cost_cents'] != null) {
-          print('💰 Costo: ${response['cost_cents']} centesimi');
-        }
         
       } catch (claudeError) {
         // Se Claude fallisce, rimuovi il messaggio temporaneo e mostra errore
@@ -261,24 +278,6 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
         
         messageNotifier.setError('Errore Claude: ${claudeError.toString()}');
       }
-      
-      // Aggiorna la lista delle sessioni
-      _ref.invalidate(chatSessionsProvider);
-      
-    } catch (e) {
-      print('❌ Errore generale nell\'invio: $e');
-      
-      // Rimuovi il messaggio temporaneo in caso di errore
-      if (state != null && state!.messages.isNotEmpty) {
-        final lastMessage = state!.messages.last;
-        if (lastMessage.status == MessageStatus.sending && !lastMessage.isUser) {
-          final messagesWithoutTemp = state!.messages.where((m) => m != lastMessage).toList();
-          state = state!.copyWith(messages: messagesWithoutTemp);
-        }
-      }
-      
-      messageNotifier.setError('Errore: $e');
-    }
   }
 
   Future<void> deleteCurrentSession() async {
