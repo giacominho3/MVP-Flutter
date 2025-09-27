@@ -205,16 +205,94 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             child: SizedBox(),
           ),
           
-          // Sezione destra con menu
+          // Sezione destra con status e menu
           Container(
             width: 320,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                // Google Workspace status indicator
+                Consumer(
+                  builder: (context, ref, _) {
+                    final googleAuthState = ref.watch(googleAuthStateProvider);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: switch (googleAuthState) {
+                          GoogleAuthAuthenticated() => AppColors.success.withValues(alpha: 0.1),
+                          GoogleAuthLoading() => AppColors.warning.withValues(alpha: 0.1),
+                          GoogleAuthError() => AppColors.error.withValues(alpha: 0.1),
+                          _ => AppColors.textTertiary.withValues(alpha: 0.1),
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: switch (googleAuthState) {
+                            GoogleAuthAuthenticated() => AppColors.success,
+                            GoogleAuthLoading() => AppColors.warning,
+                            GoogleAuthError() => AppColors.error,
+                            _ => AppColors.textTertiary,
+                          },
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.drive_file_rename_outline,
+                            size: 12,
+                            color: switch (googleAuthState) {
+                              GoogleAuthAuthenticated() => AppColors.success,
+                              GoogleAuthLoading() => AppColors.warning,
+                              GoogleAuthError() => AppColors.error,
+                              _ => AppColors.textTertiary,
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            switch (googleAuthState) {
+                              GoogleAuthAuthenticated() => 'Drive OK',
+                              GoogleAuthLoading() => 'Drive...',
+                              GoogleAuthError() => 'Drive KO',
+                              _ => 'Drive OFF',
+                            },
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: switch (googleAuthState) {
+                                GoogleAuthAuthenticated() => AppColors.success,
+                                GoogleAuthLoading() => AppColors.warning,
+                                GoogleAuthError() => AppColors.error,
+                                _ => AppColors.textTertiary,
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(width: 12),
+
                 PopupMenuButton(
                   icon: const Icon(Icons.more_vert, size: 20, color: AppColors.iconPrimary),
                   itemBuilder: (context) => [
+                    // Debug Google Auth
+                    if (kDebugMode)
+                      PopupMenuItem(
+                        onTap: () {
+                          ref.read(googleAuthStateProvider.notifier).refresh();
+                        },
+                        child: const Row(
+                          children: [
+                            Icon(Icons.refresh, size: 16),
+                            SizedBox(width: 8),
+                            Text('Refresh Google Status'),
+                          ],
+                        ),
+                      ),
                     PopupMenuItem(
                       onTap: () {
                         ref.read(authStateProvider.notifier).signOut();
@@ -223,7 +301,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         children: [
                           Icon(Icons.logout, size: 16),
                           SizedBox(width: 8),
-                          Text('Logout'),
+                          Text('Logout App'),
                         ],
                       ),
                     ),
@@ -1412,6 +1490,14 @@ Widget _buildGoogleConnectionSection() {
               _buildGoogleStatusBadge(googleAuthState),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Accesso separato per Drive, Gmail e altri servizi Google',
+            style: TextStyle(
+              fontSize: 10,
+              color: AppColors.textTertiary,
+            ),
+          ),
           const SizedBox(height: 12),
 
           _buildGoogleConnectionContent(googleAuthState),
@@ -1503,20 +1589,64 @@ Widget _buildGoogleConnectionSection() {
               ),
             ),
             const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _showGoogleDriveSearch();
+                    },
+                    icon: const Icon(Icons.folder_open, size: 16),
+                    label: const Text(
+                      'Drive',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      // TODO: Implement Gmail access
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Gmail - Coming soon!'),
+                          backgroundColor: AppColors.warning,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.email, size: 16),
+                    label: const Text(
+                      'Gmail',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: TextButton.icon(
                 onPressed: () {
-                  _showGoogleDriveSearch();
+                  ref.read(googleAuthStateProvider.notifier).signOut();
                 },
-                icon: const Icon(Icons.search, size: 16),
+                icon: const Icon(Icons.logout, size: 14),
                 label: const Text(
-                  'Cerca file in Drive',
-                  style: TextStyle(fontSize: 12),
+                  'Disconnetti Google Workspace',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                 ),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: const Size(0, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: const Size(0, 32),
                 ),
               ),
             ),
@@ -1542,7 +1672,7 @@ Widget _buildGoogleConnectionSection() {
                 },
                 icon: const Icon(Icons.login, size: 16),
                 label: const Text(
-                  'Accedi a Google',
+                  'Connetti Google Workspace',
                   style: TextStyle(fontSize: 12),
                 ),
                 style: TextButton.styleFrom(
@@ -1570,7 +1700,7 @@ Widget _buildGoogleConnectionSection() {
             },
             icon: const Icon(Icons.login, size: 16),
             label: const Text(
-              'Accedi a Google',
+              'Connetti Google Workspace',
               style: TextStyle(fontSize: 12),
             ),
             style: TextButton.styleFrom(
