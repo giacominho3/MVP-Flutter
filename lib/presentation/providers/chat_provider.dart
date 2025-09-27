@@ -35,11 +35,11 @@ final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
   }
   
   try {
-    // Per ora ritorniamo lista vuota, implementeremo storage locale
-    // TODO: Implementare storage locale delle sessioni chat
-    return [];
+    // Carica le sessioni da Supabase
+    return await SupabaseService.getChatSessions();
   } catch (e) {
-    throw Exception('Errore nel caricamento delle chat: $e');
+    print('❌ Errore nel caricamento delle sessioni: $e');
+    return [];
   }
 });
 
@@ -66,20 +66,36 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
   }
   
   void _updateAuthState(GoogleAuthState googleAuthState) {
+    print('🔄 Updating auth state from GoogleAuthState: ${googleAuthState.runtimeType}');
+
     switch (googleAuthState) {
       case GoogleAuthInitial():
+        print('📍 Setting AppAuthState to loading (GoogleAuthInitial)');
         state = const AppAuthState.loading();
         break;
       case GoogleAuthLoading():
+        print('📍 Setting AppAuthState to loading (GoogleAuthLoading)');
         state = const AppAuthState.loading();
         break;
       case GoogleAuthAuthenticated(:final account, :final userInfo):
+        print('✅ Setting AppAuthState to authenticated for user: ${account.email}');
+
+        // Imposta il mock user ID per Supabase usando l'email Google
+        try {
+          SupabaseService.setMockUserId(account.email);
+          print('✅ Supabase mock user ID set for: ${account.email}');
+        } catch (e) {
+          print('⚠️ Warning: Failed to set Supabase mock user ID: $e');
+        }
+
         state = AppAuthState.authenticated(account, userInfo);
         break;
       case GoogleAuthUnauthenticated():
+        print('❌ Setting AppAuthState to unauthenticated');
         state = const AppAuthState.unauthenticated();
         break;
       case GoogleAuthError(:final message):
+        print('💥 Setting AppAuthState to error: $message');
         state = AppAuthState.error(message);
         break;
     }
@@ -102,17 +118,24 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
   
   Future<void> createNewSession({String? title}) async {
     final authState = _ref.read(authStateProvider);
+    final googleAuthState = _ref.read(googleAuthStateProvider);
+
+    print('🔍 Debug auth - AppAuthState: ${authState.runtimeType}');
+    print('🔍 Debug auth - GoogleAuthState: ${googleAuthState.runtimeType}');
+
     if (authState is! AppAuthStateAuthenticated) {
-      throw Exception('User not authenticated');
+      print('❌ User not authenticated - AppAuthState: $authState');
+      print('❌ Google auth state: $googleAuthState');
+      throw Exception('User not authenticated - AppAuthState: ${authState.runtimeType}, GoogleAuthState: ${googleAuthState.runtimeType}');
     }
     
     try {
-      // Crea sessione locale (non più Supabase)
-      final session = ChatSession.create(title: title);
+      // Crea sessione su Supabase
+      final session = await SupabaseService.createChatSession(title ?? 'Nuova Chat');
       state = session;
-      
-      print('✅ Sessione locale creata: ${session.id}');
-      
+
+      print('✅ Sessione Supabase creata: ${session.id}');
+
       // Invalida la lista delle sessioni per aggiornare la UI
       _ref.invalidate(chatSessionsProvider);
     } catch (e) {
@@ -123,9 +146,16 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
 
   Future<void> loadSession(ChatSession session) async {
     try {
-      // Per ora carica la sessione direttamente (storage locale da implementare)
-      state = session;
+      // Carica i messaggi da Supabase
+      final messages = await SupabaseService.getMessages(session.id);
+
+      // Crea una nuova sessione con i messaggi caricati
+      final sessionWithMessages = session.copyWith(messages: messages);
+      state = sessionWithMessages;
+
+      print('✅ Sessione caricata con ${messages.length} messaggi');
     } catch (e) {
+      print('❌ Errore nel caricamento dei messaggi: $e');
       _ref.read(messageStateProvider.notifier).setError('Errore nel caricamento dei messaggi: $e');
     }
   }
@@ -286,14 +316,18 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
 
   Future<void> deleteCurrentSession() async {
     if (state == null) return;
-    
+
     try {
-      // TODO: Implementare eliminazione da storage locale
+      // Elimina la sessione da Supabase
+      await SupabaseService.deleteChatSession(state!.id);
       state = null;
-      
+
+      print('✅ Sessione eliminata da Supabase');
+
       // Aggiorna la lista delle sessioni
       _ref.invalidate(chatSessionsProvider);
     } catch (e) {
+      print('❌ Errore nell\'eliminazione della chat: $e');
       _ref.read(messageStateProvider.notifier).setError('Errore nell\'eliminazione della chat: $e');
     }
   }
