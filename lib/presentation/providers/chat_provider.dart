@@ -278,6 +278,10 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
         
         messageNotifier.setError('Errore Claude: ${claudeError.toString()}');
       }
+    } catch (e) {
+      messageNotifier.setError('Errore nell\'invio del messaggio: $e');
+      print('❌ Errore generale: $e');
+    }
   }
 
   Future<void> deleteCurrentSession() async {
