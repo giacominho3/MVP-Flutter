@@ -223,7 +223,10 @@ class GoogleDriveNotifier extends StateNotifier<GoogleDriveState> {
   
   String _parseError(dynamic error) {
     final errorStr = error.toString().toLowerCase();
-    
+
+    if (errorStr.contains('client non autenticato')) {
+      return 'Non sei autenticato con Google. Clicca per effettuare il login.';
+    }
     if (errorStr.contains('permission')) {
       return 'Permessi insufficienti per accedere a Google Drive';
     }
@@ -233,7 +236,13 @@ class GoogleDriveNotifier extends StateNotifier<GoogleDriveState> {
     if (errorStr.contains('network')) {
       return 'Errore di rete. Controlla la connessione';
     }
-    
+    if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
+      return 'Autorizzazione scaduta. Effettua nuovamente il login.';
+    }
+    if (errorStr.contains('forbidden') || errorStr.contains('403')) {
+      return 'Accesso negato. Verifica i permessi del tuo account Google.';
+    }
+
     return 'Errore: ${error.toString()}';
   }
 }

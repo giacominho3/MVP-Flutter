@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -1464,14 +1465,47 @@ Widget _buildGoogleConnectionSection() {
   }
 
   void _showGoogleDriveSearch() async {
-    final selectedFiles = await GoogleDriveDialog.show(context);
+    try {
+      if (kDebugMode) {
+        print('🔍 Apertura dialog Google Drive...');
+      }
 
-    if (selectedFiles != null && selectedFiles.isNotEmpty) {
+      final selectedFiles = await GoogleDriveDialog.show(context);
+
+      if (selectedFiles != null && selectedFiles.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${selectedFiles.length} file aggiunti ai riferimenti'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+
+        if (kDebugMode) {
+          print('✅ ${selectedFiles.length} file selezionati da Google Drive');
+        }
+      } else {
+        if (kDebugMode) {
+          print('ℹ️ Nessun file selezionato o dialog chiuso');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Errore apertura Google Drive: $e');
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${selectedFiles.length} file aggiunti ai riferimenti'),
-            backgroundColor: AppColors.success,
+            content: Text('Errore nell\'accesso a Google Drive: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Riprova',
+              textColor: Colors.white,
+              onPressed: () => _showGoogleDriveSearch(),
+            ),
           ),
         );
       }
