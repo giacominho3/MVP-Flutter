@@ -7,12 +7,28 @@ import '../../../domain/entities/chat_session.dart';
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
-  // Supabase Google OAuth integration
+// Supabase Google OAuth integration
   static Future<void> signInWithGoogle() async {
     try {
       if (kDebugMode) {
         print('🔐 Starting Supabase Google OAuth...');
         print('🌍 Window location: ${Uri.base}');
+      }
+
+      // Determina l'URL di redirect corretto
+      String? redirectTo;
+      if (kIsWeb) {
+        // Per produzione su Netlify
+        if (Uri.base.host.contains('netlify') || Uri.base.host.contains('virgo')) {
+          redirectTo = Uri.base.toString();
+        } else {
+          // Per sviluppo locale
+          redirectTo = 'http://localhost:${Uri.base.port}';
+        }
+        
+        if (kDebugMode) {
+          print('🔗 Redirect URL: $redirectTo');
+        }
       }
 
       // For web OAuth, Supabase will redirect automatically
@@ -22,6 +38,8 @@ class SupabaseService {
 
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
+        redirectTo: redirectTo,
+        scopes: 'email profile',
       );
 
       if (kDebugMode) {
@@ -458,8 +476,34 @@ class SupabaseService {
     }
   }
   
+  // ============= OAUTH DEBUG HELPERS =============
+
+  static void debugOAuthConfiguration() {
+    if (kDebugMode) {
+      print('🔍 === OAuth Configuration Debug ===');
+      print('🌍 Current window location: ${Uri.base}');
+      print('🎯 Supabase should use redirect: ${Uri.base.origin}/auth/callback');
+      print('🎯 Google OAuth should allow:');
+      print('   - Origin: ${Uri.base.origin}');
+      print('   - Redirect URI 1: ${Uri.base.origin}/auth/callback');
+      print('   - Redirect URI 2: ${Uri.base.origin}');
+
+      // Common patterns for Netlify
+      if (Uri.base.host.contains('netlify.app')) {
+        print('🌐 Detected Netlify hosting');
+        print('✅ Authorized JavaScript origins should include:');
+        print('   - https://${Uri.base.host}');
+        print('✅ Authorized redirect URIs should include:');
+        print('   - https://${Uri.base.host}/auth/callback');
+        print('   - https://${Uri.base.host}');
+      }
+
+      print('🔍 === End OAuth Debug ===');
+    }
+  }
+
   // ============= TEST EDGE FUNCTION =============
-  
+
   static Future<void> testEdgeFunction() async {
     try {
       if (kDebugMode) {

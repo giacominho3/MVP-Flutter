@@ -1,10 +1,14 @@
 // lib/presentation/screens/login_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/colors.dart';
 import '../providers/chat_provider.dart';
+
+// Conditional import for web-only features
+import 'dart:html' as html show window;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +18,22 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb && kDebugMode) {
+      // Listen for OAuth-related URL changes
+      html.window.addEventListener('popstate', (event) {
+        print('🔄 PopState event: ${html.window.location.href}');
+      });
+
+      // Listen for hash changes
+      html.window.addEventListener('hashchange', (event) {
+        print('🔄 Hash change: ${html.window.location.href}');
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
@@ -203,7 +223,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: ElevatedButton(
         onPressed: isLoading ? null : () async {
-          await ref.read(authStateProvider.notifier).signInWithSupabaseGoogle();
+          if (kDebugMode) {
+            print('🔘 Login button pressed');
+            print('🌍 Current URL: ${html.window.location.href}');
+            print('🌍 Current origin: ${html.window.location.origin}');
+            print('🌍 Current pathname: ${html.window.location.pathname}');
+          }
+          try {
+            await ref.read(authStateProvider.notifier).signInWithSupabaseGoogle();
+          } catch (e) {
+            if (kDebugMode) {
+              print('❌ Login button error: $e');
+            }
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
