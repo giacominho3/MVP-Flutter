@@ -1,6 +1,4 @@
 // lib/data/datasources/remote/supabase_service.dart
-import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../domain/entities/message.dart';
@@ -9,93 +7,24 @@ import '../../../domain/entities/chat_session.dart';
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
-  // Service role client for bypassing RLS during development
-  static SupabaseClient? _serviceRoleClient;
-  static bool _useServiceRole = false;
-  
-  // Integrazione con Supabase Auth per Google Sign-In
-  static String? _currentUserId;
-
-  static Future<void> signInWithGoogle(String idToken, String accessToken) async {
+  // Supabase Google OAuth integration
+  static Future<void> signInWithGoogle() async {
     try {
       if (kDebugMode) {
-        print('🔐 Attempting Supabase authentication with Google tokens...');
-        print('🔑 ID Token length: ${idToken.length}');
-        print('🔑 Access Token length: ${accessToken.length}');
+        print('🔐 Starting Supabase Google OAuth...');
       }
 
-      final AuthResponse response = await client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
+      await client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
       );
 
       if (kDebugMode) {
-        print('📥 Supabase auth response: ${response.session != null ? "Session created" : "No session"}');
-        print('👤 User: ${response.user?.id ?? "No user"}');
-      }
-
-      if (response.user != null) {
-        _currentUserId = response.user!.id;
-        if (kDebugMode) {
-          print('✅ Supabase Auth successful - User ID: $_currentUserId');
-          print('📧 User email: ${response.user!.email}');
-          print('🎫 Session: ${response.session?.accessToken != null ? "Valid" : "Invalid"}');
-        }
-      } else {
-        throw Exception('Supabase authentication failed: No user returned');
+        print('✅ Google OAuth initiated');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Supabase Auth error: $e');
-        print('📊 Error type: ${e.runtimeType}');
-        print('🔧 Trying alternative authentication approach...');
-      }
-
-      // Fallback: Use mock authentication for development
-      await _fallbackAuthentication(idToken, accessToken);
-    }
-  }
-
-  // Fallback authentication method
-  static Future<void> _fallbackAuthentication(String idToken, String accessToken) async {
-    try {
-      // Parse user info from ID token (basic JWT parsing)
-      final parts = idToken.split('.');
-      if (parts.length != 3) {
-        throw Exception('Invalid ID token format');
-      }
-
-      // Decode the payload (note: this is for demo purposes, in production you'd verify the signature)
-      final payload = parts[1];
-      final normalized = payload.replaceAll('-', '+').replaceAll('_', '/');
-      final padded = normalized + '=' * (4 - normalized.length % 4);
-
-      try {
-        final decoded = utf8.decode(base64.decode(padded));
-        final userInfo = json.decode(decoded) as Map<String, dynamic>;
-
-        if (kDebugMode) {
-          print('📧 Fallback auth - Email: ${userInfo['email']}');
-          print('👤 Fallback auth - User ID: ${userInfo['sub']}');
-        }
-
-        // Use Google's user ID as our Supabase user ID
-        _currentUserId = userInfo['sub'] as String?;
-
-        if (_currentUserId != null) {
-          if (kDebugMode) {
-            print('✅ Fallback authentication successful');
-          }
-        } else {
-          throw Exception('Unable to extract user ID from token');
-        }
-      } catch (e) {
-        throw Exception('Failed to parse ID token: $e');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Fallback authentication failed: $e');
+        print('❌ Google OAuth error: $e');
       }
       rethrow;
     }
@@ -118,47 +47,15 @@ class SupabaseService {
 
 
   static String get currentUserId {
-    // Prima prova con l'utente Supabase Auth corrente
     final user = client.auth.currentUser;
     if (user != null) {
       return user.id;
     }
-
-    // Fallback al cached user ID
-    if (_currentUserId != null) {
-      return _currentUserId!;
-    }
-
     throw Exception('User not authenticated. Please sign in with Google first.');
   }
 
   static bool get isAuthenticated {
-    final user = client.auth.currentUser;
-    return user != null || _currentUserId != null;
-  }
-
-  // Enable service role mode for development (bypasses RLS)
-  static void enableServiceRoleMode({String? serviceRoleKey}) {
-    if (serviceRoleKey != null && kDebugMode) {
-      try {
-        _serviceRoleClient = SupabaseClient(
-          client.supabaseUrl,
-          serviceRoleKey,
-        );
-        _useServiceRole = true;
-        print('⚙️ Service role mode enabled (RLS bypassed)');
-      } catch (e) {
-        print('❌ Failed to enable service role mode: $e');
-      }
-    }
-  }
-
-  // Get the appropriate client (service role or regular)
-  static SupabaseClient get _dbClient {
-    if (_useServiceRole && _serviceRoleClient != null) {
-      return _serviceRoleClient!;
-    }
-    return client;
+    return client.auth.currentUser != null;
   }
   
   // ============= CHAT SESSIONS - RIPRISTINO COMPLETO =============
@@ -167,7 +64,7 @@ class SupabaseService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      final response = await _dbClient
+      final response = await client
           .from('chat_sessions')
           .select()
           .eq('user_id', currentUserId)
@@ -207,7 +104,7 @@ class SupabaseService {
         print('🆔 Using user ID: $currentUserId');
       }
       
-      final response = await _dbClient
+      final response = await client
           .from('chat_sessions')
           .insert({
             'user_id': currentUserId,

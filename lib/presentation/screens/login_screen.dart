@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/colors.dart';
 import '../providers/google_auth_provider.dart';
+import '../providers/chat_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -203,7 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: ElevatedButton(
         onPressed: isLoading ? null : () async {
-          await ref.read(googleAuthStateProvider.notifier).signIn();
+          await ref.read(authStateProvider.notifier).signInWithSupabaseGoogle();
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,

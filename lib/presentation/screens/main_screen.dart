@@ -1473,7 +1473,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       height: 36,
       child: ElevatedButton(
         onPressed: () async {
-          await ref.read(googleAuthStateProvider.notifier).signIn();
+          await ref.read(authStateProvider.notifier).signInWithSupabaseGoogle();
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
