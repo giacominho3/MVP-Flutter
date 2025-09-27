@@ -3,14 +3,12 @@ import 'dart:async';
 
 import 'package:ai_assistant_mvp/data/datasources/remote/google_drive_content_extractor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../../data/datasources/remote/supabase_service.dart';
 import 'google_drive_provider.dart';
-import 'google_auth_provider.dart';
 import '../../data/datasources/remote/claude_api_service.dart';
 
 // Simple data class to replace GoogleSignInAccount for Supabase compatibility
@@ -93,23 +91,16 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
       _updateSupabaseAuthState(data);
     });
 
-    // Ascolta i cambiamenti dello stato di Google Auth (fallback)
-    _ref.listen(googleAuthStateProvider, (previous, next) {
-      _updateAuthState(next);
-    });
-
     // Check initial Supabase auth state
     final currentUser = SupabaseService.client.auth.currentUser;
     if (currentUser != null) {
       state = AppAuthState.authenticated(
-        // Create a SupabaseUserAccount for compatibility
+        // Create a SupabaseUserAccount from current user
         _createSupabaseUserAccount(currentUser),
         {'email': currentUser.email, 'name': currentUser.userMetadata?['full_name']},
       );
     } else {
-      // Fallback to Google auth state
-      final googleAuthState = _ref.read(googleAuthStateProvider);
-      _updateAuthState(googleAuthState);
+      state = const AppAuthState.unauthenticated();
     }
   }
 
@@ -144,38 +135,10 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
     );
   }
   
-  void _updateAuthState(GoogleAuthState googleAuthState) async {
-    switch (googleAuthState) {
-      case GoogleAuthInitial():
-        state = const AppAuthState.loading();
-        break;
-      case GoogleAuthLoading():
-        state = const AppAuthState.loading();
-        break;
-      case GoogleAuthAuthenticated(:final account, :final userInfo):
-        print('✅ User authenticated: ${account.email}');
-        // Convert GoogleSignInAccount to SupabaseUserAccount for compatibility
-        final supabaseAccount = SupabaseUserAccount(
-          email: account.email,
-          id: account.id,
-          displayName: account.displayName,
-          photoUrl: account.photoUrl,
-        );
-        state = AppAuthState.authenticated(supabaseAccount, userInfo);
-        break;
-      case GoogleAuthUnauthenticated():
-        state = const AppAuthState.unauthenticated();
-        break;
-      case GoogleAuthError(:final message):
-        state = AppAuthState.error(message);
-        break;
-    }
-  }
   
   Future<void> signOut() async {
     try {
       await SupabaseService.signOut();
-      await _ref.read(googleAuthStateProvider.notifier).signOut();
       state = const AppAuthState.unauthenticated();
     } catch (e) {
       state = AppAuthState.error(e.toString());

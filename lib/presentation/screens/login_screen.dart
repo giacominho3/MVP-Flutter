@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/colors.dart';
-import '../providers/google_auth_provider.dart';
 import '../providers/chat_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -17,7 +16,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
-    final googleAuthState = ref.watch(googleAuthStateProvider);
+    final authState = ref.watch(authStateProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -79,10 +78,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 48),
                 
                 // Google Sign In Button
-                _buildGoogleSignInButton(googleAuthState),
+                _buildGoogleSignInButton(authState),
                 
                 // Error Message
-                if (googleAuthState is GoogleAuthError) ...[
+                if (authState is AppAuthStateError) ...[
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -109,7 +108,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                googleAuthState.message,
+                                authState.message,
                                 style: const TextStyle(
                                   color: AppColors.error,
                                   fontSize: 13,
@@ -188,8 +187,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildGoogleSignInButton(GoogleAuthState state) {
-    final isLoading = state is GoogleAuthLoading;
+  Widget _buildGoogleSignInButton(AppAuthState state) {
+    final isLoading = state is AppAuthStateLoading;
     
     return Container(
       height: 56,

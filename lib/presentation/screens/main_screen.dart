@@ -6,7 +6,6 @@ import '../../data/datasources/remote/supabase_service.dart';
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
-import '../providers/google_auth_provider.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
 import '../providers/google_drive_provider.dart';
 import '../widgets/google_drive_dialog.dart';
@@ -1376,7 +1375,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildGoogleConnectionSection() {
-    final googleAuthState = ref.watch(googleAuthStateProvider);
+    final authState = ref.watch(authStateProvider);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1431,12 +1430,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           const SizedBox(height: 12),
           
           // Mostra sempre info utente e pulsante Drive
-          if (googleAuthState is GoogleAuthAuthenticated)
+          if (authState is AppAuthStateAuthenticated)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  googleAuthState.userInfo['email'] ?? 'Email non disponibile',
+                  authState.userInfo['email'] ?? 'Email non disponibile',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textSecondary,
