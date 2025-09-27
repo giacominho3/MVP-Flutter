@@ -3,14 +3,17 @@ set -e
 
 echo "🚀 Virgo AI - Building per Netlify..."
 
+# IMPORTANTE: Salva la directory di build iniziale
+BUILD_DIR="$(pwd)"
+echo "📍 Directory di build: $BUILD_DIR"
+
 # Verifica directory corrente
-echo "📍 Directory corrente: $(pwd)"
 echo "📁 Contenuto directory:"
 ls -la
 
 # Verifica che siamo nella directory del progetto Flutter
 if [ ! -f "pubspec.yaml" ]; then
-    echo "❌ pubspec.yaml non trovato!"
+    echo "❌ pubspec.yaml non trovato nella directory corrente!"
     echo "❌ Assicurati di essere nella root del progetto Flutter"
     exit 1
 fi
@@ -38,14 +41,15 @@ install_flutter() {
     
     echo "✅ Flutter installato in $FLUTTER_DIR"
     
-    # Torna alla directory del progetto
+    # IMPORTANTE: Torna alla directory del progetto
     cd "$BUILD_DIR"
 }
 
 # Controlla se Flutter esiste e funziona
 if [ -x "$FLUTTER_DIR/bin/flutter" ]; then
     echo "✅ Flutter trovato, verificando versione..."
-    cd "$BUILD_DIR"  # Assicurati di essere nella directory giusta
+    # IMPORTANTE: Assicurati di essere nella directory del progetto
+    cd "$BUILD_DIR"
     CURRENT_VERSION=$("$FLUTTER_DIR/bin/flutter" --version 2>/dev/null | head -n1 | cut -d' ' -f2 || echo "unknown")
     echo "Versione attuale: $CURRENT_VERSION"
     
@@ -61,43 +65,48 @@ fi
 # Configura PATH
 export PATH="$FLUTTER_DIR/bin:$PATH"
 
-# Assicurati di essere nella directory del progetto
+# IMPORTANTE: Assicurati di essere SEMPRE nella directory del progetto
 cd "$BUILD_DIR"
+echo "📍 Directory corrente prima di Flutter commands: $(pwd)"
 
 # Verifica che Flutter funzioni
 echo "🔍 Verificando installazione Flutter..."
 flutter --version
 
-# IMPORTANTE: Disabilita analytics PRIMA di altri comandi
+# Disabilita analytics
 echo "🔧 Disabilitando analytics..."
 flutter config --no-analytics 2>/dev/null || true
-
-# Disabilita anche crash reporting
 flutter config --no-enable-analytics 2>/dev/null || true
 
-# Ora esegui doctor senza flag analytics
+# Esegui doctor senza flag analytics
 echo "🔍 Flutter doctor..."
+cd "$BUILD_DIR"
 flutter doctor -v || echo "⚠️ Flutter doctor ha segnalato alcuni problemi, ma continuo..."
 
 # Configura Flutter per web
 echo "🔧 Configurando Flutter Web..."
+cd "$BUILD_DIR"
 flutter config --enable-web
 
 # Verifica che web sia supportato
+cd "$BUILD_DIR"
 flutter devices || echo "⚠️ Nessun device trovato, ma continuo..."
 
-# Pulisci progetto
+# IMPORTANTE: Pulisci progetto nella directory corretta
 echo "🧹 Pulendo progetto..."
-flutter clean
-
-# Installa dipendenze
-echo "📦 Installando dipendenze..."
-flutter pub get
-
-# IMPORTANTE: Crea i file necessari che potrebbero mancare
-echo "📝 Creando file mancanti..."
+cd "$BUILD_DIR"
+echo "📍 Pulizia in: $(pwd)"
+if [ -f "pubspec.yaml" ]; then
+    flutter clean
+else
+    echo "❌ ERRORE: pubspec.yaml non trovato in $(pwd)"
+    ls -la
+    exit 1
+fi
 
 # Crea le directory per gli assets se non esistono
+echo "📝 Creando directory assets..."
+cd "$BUILD_DIR"
 mkdir -p assets/images
 mkdir -p assets/icons
 
@@ -126,12 +135,21 @@ if [ ! -f "assets/icons/google_logo.svg" ]; then
 EOF
 fi
 
+# Installa dipendenze
+echo "📦 Installando dipendenze..."
+cd "$BUILD_DIR"
+echo "📍 Installazione dipendenze in: $(pwd)"
+flutter pub get
+
 # Analizza codice (non bloccante)
 echo "🔍 Analizzando codice..."
+cd "$BUILD_DIR"
 flutter analyze --no-fatal-infos --no-fatal-warnings || echo "⚠️ Alcuni warning trovati, ma continuo..."
 
 # Build per produzione con environment variables
 echo "🏗️ Building per web..."
+cd "$BUILD_DIR"
+echo "📍 Build in: $(pwd)"
 
 # Definisci le variabili d'ambiente per il build
 export SUPABASE_URL="${SUPABASE_URL:-https://scjptlxittvbhcibmbiv.supabase.co}"
@@ -158,8 +176,13 @@ if [ -d "build/web" ] && [ -f "build/web/index.html" ]; then
     # Post-processing: Aggiungi meta tags per migliorare il caricamento
     if [ -f "build/web/index.html" ]; then
         echo "🔧 Ottimizzando index.html..."
-        # Aggiungi preload per fonts se necessario
-        sed -i 's|</head>|<link rel="preconnect" href="https://fonts.googleapis.com">\n  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n  </head>|' build/web/index.html || true
+        # Aggiungi preload per fonts se necessario (usa un metodo più sicuro)
+        if ! grep -q "preconnect" build/web/index.html; then
+            # Usa un approccio più robusto con cat e redirezione
+            cp build/web/index.html build/web/index.html.bak
+            awk '/<\/head>/{print "  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>"}1' build/web/index.html.bak > build/web/index.html
+            rm build/web/index.html.bak
+        fi
     fi
     
     # Mostra dimensioni
@@ -170,11 +193,20 @@ if [ -d "build/web" ] && [ -f "build/web/index.html" ]; then
     echo "/* /index.html 200" > build/web/_redirects
     echo "✅ File _redirects creato per SPA routing"
     
+    # Verifica finale della struttura
+    echo "📁 Struttura finale build/web:"
+    ls -la build/web/
+    
 else
     echo "❌ Build fallita: file mancanti"
     echo "Contenuto della directory build:"
-    ls -la build/ || echo "Directory build non trovata"
+    ls -la build/ 2>/dev/null || echo "Directory build non trovata"
+    echo "Contenuto della directory corrente:"
+    ls -la
     exit 1
 fi
 
 echo "🎉 Deploy pronto per Netlify!"
+echo "📍 Directory finale: $(pwd)"
+echo "📁 Contenuto finale:"
+ls -la
