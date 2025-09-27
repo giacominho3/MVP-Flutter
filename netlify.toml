@@ -1,11 +1,33 @@
-[build.environment]
-  FLUTTER_VERSION = "3.35.4"
-
 [build]
-  command = "./build.sh"
   publish = "build/web"
+  command = "flutter build web --release --web-renderer canvaskit"
 
+[build.environment]
+  # Usa la versione di Flutter già disponibile su Netlify
+  FLUTTER_ROOT = "/opt/buildhome/.flutter"
+  PUB_CACHE = "/opt/buildhome/.pub-cache"
+
+# SPA routing - redirect tutto a index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Headers di sicurezza
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache per assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/canvaskit/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
