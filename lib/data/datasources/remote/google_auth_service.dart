@@ -4,7 +4,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/google_config.dart';
+import 'google_token_service.dart';
 
 class GoogleAuthService {
   // Singleton pattern
@@ -195,65 +197,39 @@ class GoogleAuthService {
     }
   }
   
-  /// Ottieni un client HTTP autenticato per le API Google
+/// Ottieni un client HTTP autenticato per le API Google
   Future<auth.AuthClient?> getAuthenticatedClient() async {
     try {
-      if (_googleSignIn == null || _currentAccount == null) {
+      // Prima prova a ottenere il token da Supabase
+      if (kDebugMode) {
+        print('🔍 Tentativo di ottenere Google token da Supabase...');
+      }
+      
+      // Importa il servizio (aggiungi import in alto)
+      final GoogleTokenService tokenService = GoogleTokenService();
+      final token = await GoogleTokenService.getGoogleToken();
+      
+      if (token == null) {
         if (kDebugMode) {
-          print('⚠️ Non autenticato con Google');
+          print('❌ Nessun token Google disponibile');
+          print('📝 Potrebbe essere necessario ri-autenticarsi con gli scope di Drive');
         }
         return null;
       }
       
-      // Su Web, crea un client custom con token
-      if (kIsWeb) {
-        if (kDebugMode) {
-          print('🌐 Creazione client autenticato per Web...');
-        }
-        
-        // Ottieni il token di accesso
-        final auth = await _currentAccount!.authentication;
-        final accessToken = auth.accessToken;
-        
-        if (accessToken == null) {
-          if (kDebugMode) {
-            print('❌ Access token non disponibile');
-          }
-          return null;
-        }
-        
-        if (kDebugMode) {
-          print('🔑 Access token ottenuto: ${accessToken.substring(0, 20)}...');
-        }
-        
-        // Crea un client HTTP con il token
-        final client = _GoogleAuthClient(
-          accessToken: accessToken,
-          idToken: auth.idToken,
-        );
-        
-        if (kDebugMode) {
-          print('✅ Client Web creato con successo');
-        }
-        
-        return client;
-      } else {
-        // Su Desktop usa l'estensione
-        if (kDebugMode) {
-          print('🖥️ Uso estensione per Desktop...');
-        }
-        
-        final client = await _googleSignIn!.authenticatedClient();
-        
-        if (client == null) {
-          if (kDebugMode) {
-            print('⚠️ Impossibile ottenere client autenticato');
-          }
-          return null;
-        }
-        
-        return client;
+      if (kDebugMode) {
+        print('✅ Token Google ottenuto con successo');
+        print('🔑 Token: ${token.substring(0, 20)}...');
       }
+      
+      // Crea un client HTTP con il token
+      final client = _GoogleAuthClient(
+        accessToken: token,
+        idToken: null,
+      );
+      
+      return client;
+      
     } catch (e) {
       if (kDebugMode) {
         print('❌ Errore ottenendo client autenticato: $e');
