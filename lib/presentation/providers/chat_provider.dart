@@ -27,7 +27,7 @@ class SupabaseUserAccount {
     this.photoUrl,
   });
 
-  Future<GoogleSignInAuthentication> get authentication async {
+  Future<SupabaseAuthentication> get authentication async {
     // Return empty tokens since we're using Supabase auth
     return SupabaseAuthentication();
   }
@@ -154,7 +154,14 @@ class AuthStateNotifier extends StateNotifier<AppAuthState> {
         break;
       case GoogleAuthAuthenticated(:final account, :final userInfo):
         print('✅ User authenticated: ${account.email}');
-        state = AppAuthState.authenticated(account, userInfo);
+        // Convert GoogleSignInAccount to SupabaseUserAccount for compatibility
+        final supabaseAccount = SupabaseUserAccount(
+          email: account.email,
+          id: account.id,
+          displayName: account.displayName,
+          photoUrl: account.photoUrl,
+        );
+        state = AppAuthState.authenticated(supabaseAccount, userInfo);
         break;
       case GoogleAuthUnauthenticated():
         state = const AppAuthState.unauthenticated();
