@@ -1,19 +1,19 @@
 [build]
   publish = "build/web"
-  command = "flutter build web --release --web-renderer canvaskit"
+  command = "chmod +x build.sh && ./build.sh"
 
 [build.environment]
-  # Usa la versione di Flutter già disponibile su Netlify
-  FLUTTER_ROOT = "/opt/buildhome/.flutter"
-  PUB_CACHE = "/opt/buildhome/.pub-cache"
+  # Ottimizzazioni build
+  NODE_ENV = "production"
+  FLUTTER_WEB = "true"
 
-# SPA routing - redirect tutto a index.html
+# SPA routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Headers di sicurezza
+# Headers sicurezza
 [[headers]]
   for = "/*"
   [headers.values]
@@ -21,7 +21,7 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# Cache per assets
+# Cache assets
 [[headers]]
   for = "/assets/*"
   [headers.values]
