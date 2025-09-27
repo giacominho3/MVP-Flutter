@@ -52,16 +52,12 @@ class GoogleAuthService {
         }
       }
 
-      // Controlla se l'utente è già loggato
-      await _checkExistingSignIn();
+      // NON fare silent sign-in durante l'inizializzazione per evitare rate limiting
+      // await _checkExistingSignIn();
 
       if (kDebugMode) {
-        print('✅ Google Sign In inizializzato');
-        if (_currentAccount != null) {
-          print('👤 Utente già connesso: ${_currentAccount!.email}');
-        } else {
-          print('❌ Nessun utente connesso');
-        }
+        print('✅ Google Sign In inizializzato (senza silent auth)');
+        print('❌ Nessun utente connesso - richiederà login manuale');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -84,11 +80,11 @@ class GoogleAuthService {
     }
   }
   
-  /// Effettua il login con Google
+  /// Effettua il login con Google (forzando UI manuale)
   Future<GoogleSignInAccount?> signIn() async {
     try {
       if (kDebugMode) {
-        print('🔐 Avvio processo di login Google...');
+        print('🔐 Avvio processo di login Google MANUALE...');
         print('🔍 GoogleSignIn instance: ${_googleSignIn != null ? "OK" : "NULL"}');
       }
 
@@ -103,11 +99,25 @@ class GoogleAuthService {
         throw Exception('Impossibile inizializzare Google Sign In');
       }
 
+      // PRIMA: Disconnetti qualsiasi sessione esistente per evitare auto re-auth
       if (kDebugMode) {
-        print('🚀 Chiamata signIn()...');
+        print('🧹 Pulizia sessioni esistenti...');
       }
 
-      // Mostra la UI di Google per il login
+      try {
+        await _googleSignIn!.signOut();
+        _currentAccount = null;
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ Errore durante signOut: $e (ignorato)');
+        }
+      }
+
+      if (kDebugMode) {
+        print('🚀 Chiamata signIn() con UI forzata...');
+      }
+
+      // Forza la UI di Google (non silent)
       _currentAccount = await _googleSignIn!.signIn();
 
       if (kDebugMode) {
@@ -346,13 +356,38 @@ class GoogleAuthService {
         'photoUrl': null,
       };
     }
-    
+
     return {
       'email': _currentAccount!.email,
       'name': _currentAccount!.displayName,
       'id': _currentAccount!.id,
       'photoUrl': _currentAccount!.photoUrl,
     };
+  }
+
+  /// Reset completo per risolvere rate limiting
+  Future<void> resetAuthentication() async {
+    try {
+      if (kDebugMode) {
+        print('🔄 Reset completo autenticazione Google...');
+      }
+
+      if (_googleSignIn != null) {
+        await _googleSignIn!.disconnect();
+        await _googleSignIn!.signOut();
+      }
+
+      _currentAccount = null;
+      _googleSignIn = null;
+
+      if (kDebugMode) {
+        print('✅ Reset completato');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Errore durante reset: $e (ignorato)');
+      }
+    }
   }
 }
 

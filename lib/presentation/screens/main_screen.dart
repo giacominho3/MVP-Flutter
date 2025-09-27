@@ -293,6 +293,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           ],
                         ),
                       ),
+                    if (kDebugMode)
+                      PopupMenuItem(
+                        onTap: () async {
+                          final service = ref.read(googleAuthServiceProvider);
+                          await service.resetAuthentication();
+                          ref.read(googleAuthStateProvider.notifier).refresh();
+                        },
+                        child: const Row(
+                          children: [
+                            Icon(Icons.clear_all, size: 16),
+                            SizedBox(width: 8),
+                            Text('Reset Google Auth'),
+                          ],
+                        ),
+                      ),
                     PopupMenuItem(
                       onTap: () {
                         ref.read(authStateProvider.notifier).signOut();
