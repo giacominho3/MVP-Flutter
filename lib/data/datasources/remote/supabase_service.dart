@@ -1,4 +1,6 @@
 // lib/data/datasources/remote/supabase_service.dart
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../domain/entities/message.dart';
@@ -11,13 +13,51 @@ class SupabaseService {
   static String? _mockUserId;
   
   static void setMockUserId(String email) {
-    // Crea un ID consistente basato sull'email
-    _mockUserId = 'google_${email.replaceAll('@', '_at_').replaceAll('.', '_dot_')}';
+    // Crea un UUID consistente basato sull'email usando hash
+    // Questo genera sempre lo stesso UUID per la stessa email
+    _mockUserId = _generateUuidFromEmail(email);
     if (kDebugMode) {
-      print('📧 User ID impostato: $_mockUserId');
+      print('📧 User ID UUID impostato per $email: $_mockUserId');
+      print('📧 UUID length: ${_mockUserId!.length}');
+      print('📧 UUID valid format: ${_isValidUuid(_mockUserId!)}');
     }
   }
-  
+
+  // Genera un UUID v5 (namespace + name based) consistente dall'email
+  static String _generateUuidFromEmail(String email) {
+    // Crea un UUID deterministico basato sull'email
+    // Questo genererà sempre lo stesso UUID per la stessa email
+
+    // Usa SHA-1 hash dell'email per generare bytes consistenti
+    final emailBytes = utf8.encode(email.toLowerCase());
+    final hashBytes = <int>[];
+
+    // Implementazione semplificata di hash per generare 16 bytes
+    int seed = 0x6ba7b810; // UUID v5 namespace prefix
+    for (int byte in emailBytes) {
+      seed = ((seed * 31) + byte) & 0xFFFFFFFF;
+    }
+
+    final random = Random(seed);
+    for (int i = 0; i < 16; i++) {
+      hashBytes.add(random.nextInt(256));
+    }
+
+    // Imposta i bit della versione UUID v4
+    hashBytes[6] = (hashBytes[6] & 0x0f) | 0x40; // Version 4
+    hashBytes[8] = (hashBytes[8] & 0x3f) | 0x80; // Variant bits
+
+    // Converti in formato UUID
+    final hex = hashBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}';
+  }
+
+  // Valida formato UUID
+  static bool _isValidUuid(String uuid) {
+    final uuidRegex = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+    return uuidRegex.hasMatch(uuid.toLowerCase());
+  }
+
   static String get currentUserId {
     if (_mockUserId != null) return _mockUserId!;
     // Fallback a un ID di default se non abbiamo l'email
