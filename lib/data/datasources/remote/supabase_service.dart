@@ -12,30 +12,20 @@ class SupabaseService {
     try {
       if (kDebugMode) {
         print('🔐 Starting Supabase Google OAuth...');
-        print('📍 Supabase URL: ${client.supabaseUrl}');
         print('🌍 Window location: ${Uri.base}');
       }
 
-      // Try approach 1: No redirect URL (let Supabase handle it completely)
+      // For web OAuth, Supabase will redirect automatically
       if (kDebugMode) {
-        print('🔧 Trying approach: No redirectTo parameter');
+        print('🔧 Starting OAuth flow...');
       }
 
-      final authResponse = await client.auth.signInWithOAuth(
+      await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        // No redirectTo parameter - let Supabase use its default
       );
 
       if (kDebugMode) {
-        print('✅ Google OAuth call successful');
-        print('🔗 Auth URL: ${authResponse.url}');
-
-        if (authResponse.url != null) {
-          final uri = Uri.parse(authResponse.url!);
-          print('🎯 Full OAuth URL: ${authResponse.url}');
-          print('🎯 redirect_uri parameter: ${uri.queryParameters['redirect_uri']}');
-          print('🎯 client_id parameter: ${uri.queryParameters['client_id']}');
-        }
+        print('✅ OAuth flow initiated');
       }
     } catch (e) {
       if (kDebugMode) {
