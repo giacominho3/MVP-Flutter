@@ -3,7 +3,21 @@ set -e
 
 echo "🚀 Virgo AI - Building per Netlify..."
 
-# Directory di lavoro
+# Verifica directory corrente
+echo "📍 Directory corrente: $(pwd)"
+echo "📁 Contenuto directory:"
+ls -la
+
+# Verifica che siamo nella directory del progetto Flutter
+if [ ! -f "pubspec.yaml" ]; then
+    echo "❌ pubspec.yaml non trovato!"
+    echo "❌ Assicurati di essere nella root del progetto Flutter"
+    exit 1
+fi
+
+echo "✅ pubspec.yaml trovato"
+
+# Directory di lavoro per Flutter
 WORK_DIR="/opt/buildhome"
 FLUTTER_DIR="$WORK_DIR/flutter"
 FLUTTER_VERSION="3.19.0"
@@ -23,12 +37,16 @@ install_flutter() {
     tar xf "flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
     
     echo "✅ Flutter installato in $FLUTTER_DIR"
+    
+    # Torna alla directory del progetto
+    cd "$BUILD_DIR"
 }
 
 # Controlla se Flutter esiste e funziona
 if [ -x "$FLUTTER_DIR/bin/flutter" ]; then
     echo "✅ Flutter trovato, verificando versione..."
-    CURRENT_VERSION=$("$FLUTTER_DIR/bin/flutter" --version | head -n1 | cut -d' ' -f2)
+    cd "$BUILD_DIR"  # Assicurati di essere nella directory giusta
+    CURRENT_VERSION=$("$FLUTTER_DIR/bin/flutter" --version 2>/dev/null | head -n1 | cut -d' ' -f2 || echo "unknown")
     echo "Versione attuale: $CURRENT_VERSION"
     
     if [[ "$CURRENT_VERSION" != "$FLUTTER_VERSION"* ]]; then
@@ -43,13 +61,13 @@ fi
 # Configura PATH
 export PATH="$FLUTTER_DIR/bin:$PATH"
 
-# Torna alla directory del progetto
+# Assicurati di essere nella directory del progetto
 cd "$BUILD_DIR"
 
 # Verifica che Flutter funzioni
 echo "🔍 Verificando installazione Flutter..."
 flutter --version
-flutter doctor -v
+flutter doctor --no-analytics
 
 # Configura Flutter per web
 echo "🔧 Configurando Flutter Web..."
@@ -66,10 +84,6 @@ flutter clean
 echo "📦 Installando dipendenze..."
 flutter pub get
 
-# Verifica dipendenze
-echo "🔍 Verificando dipendenze..."
-flutter pub deps
-
 # Analizza codice (non bloccante)
 echo "🔍 Analizzando codice..."
 flutter analyze --no-fatal-infos || echo "⚠️ Alcuni warning trovati, ma continuo..."
@@ -80,8 +94,7 @@ flutter build web \
     --release \
     --web-renderer canvaskit \
     --dart-define=FLUTTER_WEB_USE_SKIA=true \
-    --dart-define=FLUTTER_WEB_AUTO_DETECT=false \
-    --source-maps
+    --dart-define=FLUTTER_WEB_AUTO_DETECT=false
 
 # Verifica risultato
 if [ -d "build/web" ] && [ -f "build/web/index.html" ]; then

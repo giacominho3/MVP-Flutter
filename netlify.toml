@@ -1,9 +1,8 @@
 [build]
   publish = "build/web"
-  command = "chmod +x build.sh && ./build.sh"
+  command = "./build.sh"
 
 [build.environment]
-  # Ottimizzazioni build
   NODE_ENV = "production"
   FLUTTER_WEB = "true"
 
