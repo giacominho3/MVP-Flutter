@@ -12,31 +12,36 @@ class SupabaseService {
     try {
       if (kDebugMode) {
         print('🔐 Starting Supabase Google OAuth...');
+        print('📍 Supabase URL: ${client.supabaseUrl}');
+        print('🌍 Window location: ${Uri.base}');
       }
 
-      // Get the correct redirect URL based on platform
-      String? redirectUrl;
-      if (kIsWeb) {
-        // For web, use the current origin
-        // In production, this will be your Netlify URL
-        // In development, this will be localhost
-        redirectUrl = null; // Let Supabase handle it
-      } else {
-        // For mobile apps
-        redirectUrl = 'io.supabase.flutterquickstart://login-callback/';
+      // Try approach 1: No redirect URL (let Supabase handle it completely)
+      if (kDebugMode) {
+        print('🔧 Trying approach: No redirectTo parameter');
       }
 
-      await client.auth.signInWithOAuth(
+      final authResponse = await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: redirectUrl,
+        // No redirectTo parameter - let Supabase use its default
       );
 
       if (kDebugMode) {
-        print('✅ Google OAuth initiated');
+        print('✅ Google OAuth call successful');
+        print('🔗 Auth URL: ${authResponse.url}');
+
+        if (authResponse.url != null) {
+          final uri = Uri.parse(authResponse.url!);
+          print('🎯 Full OAuth URL: ${authResponse.url}');
+          print('🎯 redirect_uri parameter: ${uri.queryParameters['redirect_uri']}');
+          print('🎯 client_id parameter: ${uri.queryParameters['client_id']}');
+        }
       }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Google OAuth error: $e');
+        print('📊 Error type: ${e.runtimeType}');
+        print('📋 Error details: ${e.toString()}');
       }
       rethrow;
     }
