@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
+import '../../data/datasources/remote/supabase_service.dart';
 import 'google_drive_provider.dart';
 import 'google_auth_provider.dart';
 
@@ -33,8 +34,8 @@ final chatSessionsProvider = FutureProvider<List<ChatSession>>((ref) async {
   }
   
   try {
-    // TODO: Implementare storage locale delle sessioni chat
     // Per ora ritorniamo lista vuota, implementeremo storage locale
+    // TODO: Implementare storage locale delle sessioni chat
     return [];
   } catch (e) {
     throw Exception('Errore nel caricamento delle chat: $e');
@@ -191,41 +192,81 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
       // Aggiungi messaggio assistente temporaneo
       state = state!.addMessage(tempAssistantMessage);
       
-      // TODO: Sostituire con chiamata API Claude diretta
-      // Per ora simula una risposta
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Rimuovi il messaggio temporaneo
-      final messagesWithoutTemp = state!.messages
-          .where((m) => m.id != tempAssistantMessage.id)
-          .toList();
-      
-      // Simula risposta dell'assistente
-      final assistantResponse = _generateMockResponse(content, selectedDriveFiles);
-      
-      // Crea il messaggio assistente finale
-      final assistantMessage = Message.assistant(
-        content: assistantResponse,
-        sessionId: state!.id,
-      );
-      
-      // Aggiungi il messaggio dell'assistente alla lista
-      state = state!.copyWith(
-        messages: [...messagesWithoutTemp, assistantMessage],
-      );
-      
-      messageNotifier.setIdle();
-      
-      print('✅ Messaggio inviato e risposta ricevuta');
-      if (selectedDriveFiles.isNotEmpty) {
-        print('📎 File nel contesto: ${selectedDriveFiles.map((f) => f.name).join(', ')}');
+      // === CHIAMATA API CLAUDE REALE ===
+      try {
+        print('🤖 Invio messaggio a Claude...');
+        
+        // Prepara la history per Claude (escludi il messaggio temporaneo)
+        final history = state!.messages
+            .where((m) => m.id != tempAssistantMessage.id && m.status != MessageStatus.sending)
+            .toList();
+        
+        // Chiama l'API Claude tramite Supabase Edge Function
+        final response = await SupabaseService.sendToClaude(
+          message: fullMessage, // Usa il messaggio con contesto se presente
+          history: history,
+          sessionId: state!.id,
+        );
+        
+        print('✅ Risposta ricevuta da Claude');
+        
+        // Rimuovi il messaggio temporaneo
+        final messagesWithoutTemp = state!.messages
+            .where((m) => m.id != tempAssistantMessage.id)
+            .toList();
+        
+        // Crea il messaggio assistente finale con la risposta di Claude
+        final assistantMessage = Message.assistant(
+          content: response['content'] ?? 'Mi dispiace, non ho ricevuto una risposta valida.',
+          sessionId: state!.id,
+        );
+        
+        // Aggiorna lo stato con la risposta reale
+        state = state!.copyWith(
+          messages: [...messagesWithoutTemp, assistantMessage],
+        );
+        
+        messageNotifier.setIdle();
+        
+        print('✅ Messaggio inviato e risposta Claude ricevuta');
+        if (selectedDriveFiles.isNotEmpty) {
+          print('📎 File nel contesto: ${selectedDriveFiles.map((f) => f.name).join(', ')}');
+        }
+        
+        // Log dei token utilizzati se disponibili
+        if (response['tokens_used'] != null) {
+          print('🎯 Token utilizzati: ${response['tokens_used']}');
+        }
+        if (response['cost_cents'] != null) {
+          print('💰 Costo: ${response['cost_cents']} centesimi');
+        }
+        
+      } catch (claudeError) {
+        // Se Claude fallisce, rimuovi il messaggio temporaneo e mostra errore
+        print('❌ Errore Claude API: $claudeError');
+        
+        final messagesWithoutTemp = state!.messages
+            .where((m) => m.id != tempAssistantMessage.id)
+            .toList();
+        
+        // Aggiungi un messaggio di errore
+        final errorMessage = Message.system(
+          content: 'Mi dispiace, si è verificato un errore nel contattare Claude. Errore: ${claudeError.toString()}',
+          sessionId: state!.id,
+        );
+        
+        state = state!.copyWith(
+          messages: [...messagesWithoutTemp, errorMessage],
+        );
+        
+        messageNotifier.setError('Errore Claude: ${claudeError.toString()}');
       }
       
       // Aggiorna la lista delle sessioni
       _ref.invalidate(chatSessionsProvider);
       
     } catch (e) {
-      print('❌ Errore nell\'invio: $e');
+      print('❌ Errore generale nell\'invio: $e');
       
       // Rimuovi il messaggio temporaneo in caso di errore
       if (state != null && state!.messages.isNotEmpty) {
@@ -237,26 +278,6 @@ Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i f
       }
       
       messageNotifier.setError('Errore: $e');
-    }
-  }
-
-  // Mock response per test (da sostituire con API Claude)
-  String _generateMockResponse(String userMessage, List<dynamic> selectedFiles) {
-    if (selectedFiles.isNotEmpty) {
-      return '''Grazie per il tuo messaggio: "$userMessage"
-
-Ho analizzato ${selectedFiles.length} file dal tuo Google Drive:
-${selectedFiles.map((f) => '• ${f.name}').join('\n')}
-
-[Questa è una risposta di test. Presto sarà sostituita con l'integrazione Claude API]
-
-Come posso aiutarti ulteriormente con questi documenti?''';
-    } else {
-      return '''Grazie per il tuo messaggio: "$userMessage"
-
-[Questa è una risposta di test. Presto sarà sostituita con l'integrazione Claude API]
-
-Come posso aiutarti?''';
     }
   }
 
