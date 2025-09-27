@@ -7,62 +7,26 @@ import '../../../domain/entities/chat_session.dart';
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
   
-  static User? get currentUser => client.auth.currentUser;
-  static bool get isAuthenticated => currentUser != null;
+  // Usiamo un ID utente fittizio ma consistente basato sull'email Google
+  static String? _mockUserId;
   
-  // ============= AUTENTICAZIONE =============
-  
-  static Future<AuthResponse> signInWithEmail(String email, String password) async {
-    try {
-      if (kDebugMode) {
-        print('🔐 Attempting sign in for: $email');
-      }
-      
-      final response = await client.auth.signInWithPassword(
-        email: email, 
-        password: password,
-      );
-      
-      if (kDebugMode) {
-        print('✅ Sign in successful');
-      }
-      return response;
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Sign in error: $e');
-      }
-      rethrow;
+  static void setMockUserId(String email) {
+    // Crea un ID consistente basato sull'email
+    _mockUserId = 'google_${email.replaceAll('@', '_at_').replaceAll('.', '_dot_')}';
+    if (kDebugMode) {
+      print('📧 User ID impostato: $_mockUserId');
     }
   }
   
-  static Future<AuthResponse> signUp(String email, String password) async {
-    try {
-      if (kDebugMode) {
-        print('📝 Attempting sign up for: $email');
-      }
-      
-      final response = await client.auth.signUp(
-        email: email, 
-        password: password,
-      );
-      
-      if (kDebugMode) {
-        print('✅ Sign up successful');
-      }
-      return response;
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Sign up error: $e');
-      }
-      rethrow;
-    }
+  static String get currentUserId {
+    if (_mockUserId != null) return _mockUserId!;
+    // Fallback a un ID di default se non abbiamo l'email
+    throw Exception('User ID non impostato. Assicurati di fare login con Google prima.');
   }
   
-  static Future<void> signOut() async {
-    await client.auth.signOut();
-  }
+  static bool get isAuthenticated => _mockUserId != null;
   
-  // ============= CHAT SESSIONS =============
+  // ============= CHAT SESSIONS - RIPRISTINO COMPLETO =============
   
   static Future<List<ChatSession>> getChatSessions() async {
     if (!isAuthenticated) throw Exception('User not authenticated');
@@ -71,8 +35,12 @@ class SupabaseService {
       final response = await client
           .from('chat_sessions')
           .select()
-          .eq('user_id', currentUser!.id)
+          .eq('user_id', currentUserId)
           .order('updated_at', ascending: false);
+      
+      if (kDebugMode) {
+        print('📚 Loaded ${(response as List).length} chat sessions from database');
+      }
       
       return (response as List).map((json) => ChatSession(
         id: json['id'],
@@ -92,14 +60,22 @@ class SupabaseService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
+      if (kDebugMode) {
+        print('💾 Creating chat session in database...');
+      }
+      
       final response = await client
           .from('chat_sessions')
           .insert({
-            'user_id': currentUser!.id,
+            'user_id': currentUserId,
             'title': title,
           })
           .select()
           .single();
+      
+      if (kDebugMode) {
+        print('✅ Chat session created: ${response['id']}');
+      }
       
       return ChatSession(
         id: response['id'],
@@ -124,6 +100,10 @@ class SupabaseService {
       
       // Poi elimina la sessione
       await client.from('chat_sessions').delete().eq('id', sessionId);
+      
+      if (kDebugMode) {
+        print('✅ Chat session deleted: $sessionId');
+      }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error deleting chat session: $e');
@@ -132,7 +112,30 @@ class SupabaseService {
     }
   }
   
-  // ============= MESSAGES =============
+  static Future<void> updateChatSessionTitle(String sessionId, String newTitle) async {
+    if (!isAuthenticated) throw Exception('User not authenticated');
+    
+    try {
+      await client
+          .from('chat_sessions')
+          .update({
+            'title': newTitle,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', sessionId);
+      
+      if (kDebugMode) {
+        print('✅ Chat session title updated');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error updating chat session title: $e');
+      }
+      rethrow;
+    }
+  }
+  
+  // ============= MESSAGES - RIPRISTINO COMPLETO =============
   
   static Future<List<Message>> getMessages(String sessionId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
@@ -146,9 +149,6 @@ class SupabaseService {
       
       if (kDebugMode) {
         print('📚 Loaded ${(response as List).length} messages from database');
-        for (var msg in response) {
-          print('  - ${msg['is_user'] ? 'User' : 'Assistant'}: ${msg['content'].toString().substring(0, msg['content'].toString().length > 50 ? 50 : msg['content'].toString().length)}...');
-        }
       }
       
       return (response as List).map((json) => Message(
@@ -186,7 +186,7 @@ class SupabaseService {
             'session_id': sessionId,
             'content': content,
             'is_user': isUser,
-            // RIMOSSO user_id perché non esiste nella tabella messages
+            // user_id non serve nella tabella messages
           })
           .select()
           .single();
@@ -263,6 +263,7 @@ class SupabaseService {
           'message': message,
           'session_id': sessionId, // NOTA: underscore come nella tua edge function
           'history': formattedHistory,
+          'user_id': currentUserId, // Passa il nostro user_id
         },
       );
       
@@ -273,7 +274,7 @@ class SupabaseService {
         print('📥 Response data: ${response.data}');
       }
       
-      // CORREZIONE: Gestione errori migliorata
+      // Gestione errori
       if (response.data == null) {
         throw Exception('Nessuna risposta dalla edge function');
       }
@@ -354,13 +355,13 @@ class SupabaseService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      // Calcola uso nelle ultime 24 ore come fa la tua edge function
+      // Calcola uso nelle ultime 24 ore
       final oneDayAgo = DateTime.now().subtract(const Duration(days: 1)).toIso8601String();
       
       final response = await client
           .from('usage_logs')
           .select('tokens_used, cost_cents')
-          .eq('user_id', currentUser!.id)
+          .eq('user_id', currentUserId)
           .gte('created_at', oneDayAgo);
       
       int totalTokens = 0;
