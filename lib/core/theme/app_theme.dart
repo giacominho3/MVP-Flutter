@@ -39,7 +39,7 @@ class AppTextStyles {
   static const TextStyle bodySmall = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    color: Color.fromARGB(255, 76, 77, 78), // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 76, 77, 78),
     height: 1.3,
   );
   
@@ -47,14 +47,14 @@ class AppTextStyles {
   static const TextStyle caption = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    color: Color.fromARGB(255, 72, 73, 74), // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 72, 73, 74),
     letterSpacing: 0.5,
   );
   
   static const TextStyle captionSmall = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w500,
-    color: Color.fromARGB(255, 78, 78, 80), // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 78, 78, 80),
     letterSpacing: 0.3,
   );
   
@@ -104,14 +104,14 @@ class AppTextStyles {
   static const TextStyle inputHint = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
-    color: Color.fromARGB(255, 83, 84, 85), // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 83, 84, 85),
   );
 
   // Section header styles
   static const TextStyle sectionHeader = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    color: Color.fromARGB(255, 57, 58, 60), // Cambiato per evitare Color.fromARGB
+    color: Color.fromARGB(255, 57, 58, 60),
     letterSpacing: 0.5,
   );
 }
@@ -143,13 +143,13 @@ class AppTheme {
       surfaceTintColor: Colors.transparent,
     ),
     
-    // Card theme per elementi container
-    cardTheme: const CardThemeData(
+    // Card theme per elementi container - RIMOSSO const
+    cardTheme: CardThemeData(
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-        side: BorderSide(color: AppColors.outline),
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppColors.outline),
       ),
       surfaceTintColor: Colors.transparent,
     ),
@@ -207,7 +207,7 @@ class AppTheme {
       fillColor: AppColors.inputBackground,
       hintStyle: AppTextStyles.inputHint,
       labelStyle: const TextStyle(
-        color: Color.fromARGB(255, 80, 80, 80), // Stesso grigio scuro dei bordi
+        color: Color.fromARGB(255, 80, 80, 80),
         fontSize: 14,
         fontWeight: FontWeight.w400,
       ),
@@ -258,12 +258,12 @@ class AppTheme {
       textColor: AppColors.textPrimary,
     ),
     
-    // Scroll bar theme
+    // Scroll bar theme - USANDO MaterialStateProperty invece di WidgetStateProperty
     scrollbarTheme: ScrollbarThemeData(
-      thumbColor: WidgetStateProperty.all(const Color.fromARGB(255, 64, 65, 67).withOpacity(0.3)),
-      trackColor: WidgetStateProperty.all(Colors.transparent),
+      thumbColor: MaterialStateProperty.all(const Color.fromARGB(255, 64, 65, 67).withOpacity(0.3)),
+      trackColor: MaterialStateProperty.all(Colors.transparent),
       radius: const Radius.circular(4),
-      thickness: WidgetStateProperty.all(4),
+      thickness: MaterialStateProperty.all(4),
     ),
   );
 
