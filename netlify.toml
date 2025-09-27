@@ -1,25 +1,32 @@
 [build]
   publish = "build/web"
-  
+  command = "./build.sh"
+
 [build.environment]
-  # Usa buildpack Flutter
-  FLUTTER_VERSION = "3.19.0"
-  FLUTTER_CHANNEL = "stable"
+  NODE_ENV = "production"
+  FLUTTER_WEB = "true"
 
-# Build hook per installare Flutter tramite buildpack
-[build.processing]
-  skip_processing = false
-
-[[plugins]]
-  package = "netlify-plugin-flutter-web"
-
+# SPA routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
+# Headers sicurezza
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/canvaskit/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
