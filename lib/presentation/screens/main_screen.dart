@@ -1463,4 +1463,90 @@ Widget _buildGoogleConnectionSection() {
       ),
     );
   }
+
+  void _showGoogleDriveSearch() async {
+    final selectedFiles = await GoogleDriveDialog.show(context);
+
+    if (selectedFiles != null && selectedFiles.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${selectedFiles.length} file aggiunti ai riferimenti'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildDriveFileReference(DriveFile file) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.outline),
+      ),
+      child: Row(
+        children: [
+          Text(
+            file.fileTypeIcon,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  file.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  file.fileTypeDescription,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.badgeGoogleDrive,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: const Text(
+              'G DRIVE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: () {
+              ref.read(selectedDriveFilesProvider.notifier).removeFile(file.id);
+            },
+            child: const Icon(
+              Icons.close,
+              size: 14,
+              color: AppColors.iconSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
